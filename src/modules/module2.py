@@ -1,12 +1,10 @@
 """
-================================================================================
-modules/module2.py  --  Module 2: Object Dimension Measurement
-================================================================================
-Camera calibration + perspective projection to measure real-world 2D object
-dimensions, validated over 20 measurements, plus the two-view theory.
+modules/module2.py -- Module 2: Object Dimension Measurement.
 
-Rendered inside app.py — not run directly.
-================================================================================
+This is the Streamlit version of calibrate.py / measure.py / validate.py
+combined into one page with tabs, so I don't have to run three separate CLI
+scripts and re-upload photos every time. app.py imports this automatically
+because it's named moduleN.py -- it never runs on its own.
 """
 import os
 import numpy as np
@@ -39,9 +37,7 @@ def render():
         ['Step 1 — Calibration', 'Step 2 — Measure', 'Step 3 — Validation', 'Theory'])
 
 
-    # ----------------------------------------------------------------------------
-    # STEP 1 : CALIBRATION
-    # ----------------------------------------------------------------------------
+    # -- step 1: calibration --
     with tab1:
         st.header('Step 1 — Camera Calibration')
         st.markdown(
@@ -127,9 +123,7 @@ def render():
                     f'cx={K[0,2]:.1f}, cy={K[1,2]:.1f}')
 
 
-    # ----------------------------------------------------------------------------
-    # STEP 2 : MEASUREMENT
-    # ----------------------------------------------------------------------------
+    # -- step 2: measurement --
     with tab2:
         st.header('Step 2 — Measure a Real-World Dimension')
         K, dist = load_calib()
@@ -203,9 +197,7 @@ def render():
                                f'`{Z:.0f},{p1[0]:.0f},{p1[1]:.0f},{p2[0]:.0f},{p2[1]:.0f}`')
 
 
-    # ----------------------------------------------------------------------------
-    # STEP 3 : VALIDATION
-    # ----------------------------------------------------------------------------
+    # -- step 3: validation --
     with tab3:
         st.header('Step 3 — Validation over 20 Measurements')
         K, dist = load_calib()
@@ -274,9 +266,7 @@ def render():
                                        'validation_results.csv', 'text/csv')
 
 
-    # ----------------------------------------------------------------------------
-    # THEORY
-    # ----------------------------------------------------------------------------
+    # -- theory tab --
     with tab4:
         st.header('Theory — Two-View Geometry')
         st.markdown('**Problem.** Camera 1 is static; camera 2 sits at a distance and '

@@ -1,92 +1,72 @@
-# Theory: Relating a 3D Point's Image Coordinates Across Two Cameras
+# Theory: relating a 3D point's image across two cameras
 
-**Problem.** Camera 1 is static; camera 2 is placed at a certain distance and
-at an oblique orientation from camera 1. A 3D point **P = (X, Y, Z)** lies in
-the field of view of both cameras. Derive the mathematical relationship between
-the image coordinates of P in camera 1 and camera 2.
+**The setup.** Camera 1 stays put. Camera 2 is somewhere else — some distance
+away and pointed at a different angle ("oblique orientation" in the prompt).
+There's a 3D point P = (X, Y, Z) that both cameras can see. I want the
+mathematical relationship between where P shows up in image 1 and where it
+shows up in image 2.
 
----
+I worked this the same way it's usually done in two-view geometry (this is
+essentially deriving the epipolar constraint from scratch), so a lot of this
+will look familiar from the multi-view lecture slides — I've tried to connect
+it back to that notation where it's relevant.
 
-## Assumptions (and justification)
+## Assumptions I'm making, and why
 
-1. **Pinhole camera model**, lens distortion removed via calibration. This lets
-   projection be written as a single linear map in homogeneous coordinates.
-2. **Both cameras are calibrated**, so the intrinsic matrices `K1`, `K2` are
-   known. If the same phone is used for both views, `K1 = K2 = K`.
-3. **Rigid relative pose (R, t)** between the two cameras, constant during
-   capture. "Oblique orientation" is captured entirely by the rotation `R`;
-   "a certain distance" by the translation `t`.
-4. **Camera 1's frame is chosen as the world frame.** This is a free choice and
-   removes one redundant transform without loss of generality.
-5. **P has positive depth in both cameras and is within both FoVs**, as stated.
+1. **Pinhole camera, distortion already corrected.** Both cameras have been
+   calibrated the way I did in Step 1, so I can treat projection as a clean
+   linear map and not worry about lens distortion messing up the algebra.
+2. **Both cameras are calibrated** — I know `K1` and `K2`. If it's literally
+   the same phone taking both shots, `K1 = K2`.
+3. **The relative pose between the cameras, `(R, t)`, is fixed** during the
+   time both photos are taken. `R` is the "oblique orientation" from the
+   prompt, `t` is the offset/baseline.
+4. **I put camera 1's frame as the world frame.** No physical meaning to
+   this, it's just a free choice that removes one transform from the algebra
+   without losing anything.
+5. **P is in front of both cameras** (positive depth), which is already
+   stated in the problem.
 
-Notation: `p̃ = (u, v, 1)^T` is a homogeneous pixel; `X1 = (X, Y, Z)^T` is P in
-camera 1's frame; `[t]×` is the 3×3 skew-symmetric matrix of `t`.
+Notation: `p̃ = (u, v, 1)ᵀ` is a pixel in homogeneous coordinates. `X1` is P
+written in camera 1's frame. `[t]×` is the skew-symmetric matrix built from
+`t`, defined further down.
 
----
+## 1. Writing down the projection for each camera
 
-## 1. Projection in each camera
-
-With camera 1's frame as the world frame, its projection matrix is
-`P1 = K1 [ I | 0 ]`, so
-
-```
-λ1 · p̃1 = K1 · X1                      (camera 1)
-```
-
-Camera 2 is obtained by rotating and translating camera 1's frame. A point maps
-from camera 1's frame to camera 2's frame by `X2 = R·X1 + t`, giving
-`P2 = K2 [ R | t ]`:
+Since camera 1's frame *is* the world frame, its projection is the plain
+pinhole equation:
 
 ```
-λ2 · p̃2 = K2 · (R·X1 + t)              (camera 2)
+λ1 · p̃1 = K1 · X1
 ```
 
-Define **normalized (calibration-free) coordinates** by pre-multiplying with the
-inverse intrinsics:
+Camera 2 is just camera 1's frame rotated and shifted. A point moves between
+the two frames as `X2 = R·X1 + t`, so camera 2's projection is:
 
 ```
-x̂1 = K1⁻¹ · p̃1  ∝  X1
-x̂2 = K2⁻¹ · p̃2  ∝  R·X1 + t = X2
+λ2 · p̃2 = K2 · (R·X1 + t)
 ```
 
----
-
-## 2. Epipolar (coplanarity) constraint
-
-The three vectors `X2`, `t`, and `R·X1` satisfy `X2 = R·X1 + t`, so they are
-**coplanar**. Coplanarity is equivalent to a zero scalar triple product:
+It's convenient to divide out the intrinsics and work with "normalized"
+coordinates — i.e. undo the calibration and just look at the ray direction:
 
 ```
-X2 · ( t × R·X1 ) = 0
+x̂1 = K1⁻¹ p̃1  ∝  X1
+x̂2 = K2⁻¹ p̃2  ∝  X2 = R·X1 + t
 ```
 
-Writing the cross product as a matrix (`t × v = [t]× · v`):
+## 2. Getting to the epipolar constraint
+
+Here's the key geometric fact: the three vectors `X2`, `t`, and `R·X1` all lie
+in the same plane, because `X2 - t = R·X1` — that's literally the equation
+from step 1 rearranged. Three coplanar vectors means their scalar triple
+product is zero:
 
 ```
-X2ᵀ · [t]× · R · X1 = 0
-        └─────┬─────┘
-              E   (Essential matrix,  E = [t]× R)
+X2 · (t × R·X1) = 0
 ```
 
-so **X2ᵀ · E · X1 = 0**. Substituting `X1 ∝ K1⁻¹ p̃1` and `X2 ∝ K2⁻¹ p̃2`:
-
-```
-p̃2ᵀ · ( K2⁻ᵀ · [t]× · R · K1⁻¹ ) · p̃1 = 0
-        └────────────┬────────────┘
-                     F   (Fundamental matrix)
-```
-
-### Result
-
-```
-p̃2ᵀ · F · p̃1 = 0 ,      F = K2⁻ᵀ [t]× R K1⁻¹
-```
-
-This is the exact relationship between the two image points: the image of P in
-camera 2 must lie on the **epipolar line** `l2 = F · p̃1`, and its image in
-camera 1 lies on `l1 = Fᵀ · p̃2`.
-
+Cross product with a fixed vector is just a linear map, so `t × v = [t]× v`
 where
 
 ```
@@ -95,54 +75,85 @@ where
         ⎣-t_y   t_x    0  ⎦
 ```
 
-**Why a line, not a point?** A single image point in camera 1 fixes only the
-*direction* of the ray to P, not its depth. All points along that ray project to
-one point in camera 1 but to a whole line in camera 2 — the epipolar line.
-
----
-
-## 3. Point-to-point relationship when depth is known
-
-If the depth `Z` (equivalently the scale `λ1`) is known, P is fully determined
-and its image in camera 2 is a single point:
+Substituting that in:
 
 ```
-X1 = λ1 · K1⁻¹ · p̃1
-λ2 · p̃2 = K2 · ( R · X1 + t )
+X2ᵀ · [t]× · R · X1 = 0
 ```
 
-Dividing the right-hand side by its third component recovers `(u2, v2)`
-explicitly. Eliminating the unknown depth from this pair of equations reproduces
-exactly the epipolar line of Section 2.
+Call `E = [t]× R` — this is the **essential matrix**. So `X2ᵀ E X1 = 0`. Now
+swap in the normalized-coordinate expressions from step 1 (`X1 ∝ K1⁻¹p̃1`,
+`X2 ∝ K2⁻¹p̃2`):
 
----
+```
+p̃2ᵀ (K2⁻ᵀ [t]× R K1⁻¹) p̃1 = 0
+```
 
-## 4. Static parameters, variables, and how to obtain them
+The thing in parentheses is the **fundamental matrix**:
 
-| Symbol | Meaning | How determined |
-|--------|---------|----------------|
-| `K1, K2` | intrinsic matrices | Step-1 calibration (`cv2.calibrateCamera`); equal if same phone |
-| `R` | relative rotation (3×3) | measured mounting angles, or estimated from correspondences |
-| `t` | relative translation / baseline | measured with a ruler, or estimated up to scale |
-| `[t]×` | skew matrix of `t` | built directly from `t` |
-| `E = [t]× R` | essential matrix | from `R, t`, or from calibrated correspondences |
-| `F = K2⁻ᵀ E K1⁻¹` | fundamental matrix | from `E`, or the 8-point algorithm |
-| `P = (X, Y, Z)` | the 3D scene point | triangulated from both views |
+```
+F = K2⁻ᵀ [t]× R K1⁻¹
+```
 
-**If R and t are unknown**, estimate them from image data:
+**So the answer to "how do the two image points relate" is:**
 
-1. Detect and match **≥ 8 point correspondences** between the two images
-   (e.g. ORB/SIFT features).
-2. `F = cv2.findFundamentalMat(pts1, pts2, cv2.FM_8POINT)` — the 8-point
-   algorithm.
-3. `E = K2ᵀ · F · K1` (or `cv2.findEssentialMat` directly with K).
-4. `cv2.recoverPose(E, pts1, pts2, K)` decomposes `E` via SVD into `R` and a
-   **unit** translation `t`. Absolute scale of `t` is not recoverable from
-   images alone (monocular scale ambiguity) — resolve it with one known
-   physical length or baseline.
-5. With `K, R, t` known, recover P by triangulation
-   (`cv2.triangulatePoints`).
+```
+p̃2ᵀ · F · p̃1 = 0
+```
 
-**Scale ambiguity note.** Two-view reconstruction from a single moving/second
-camera is only determined *up to a global scale*. A single known real-world
-measurement fixes that scale; everything else then follows.
+That's the whole relationship. Given `p̃1`, this says `p̃2` has to lie on the
+line `l2 = F·p̃1` — the epipolar line. Same thing the other way with
+`l1 = Fᵀ·p̃2`.
+
+**Why a line and not a single point?** One pixel in camera 1 only tells you
+the *direction* of the ray from the camera through P — not how far along
+that ray P actually is. Every possible depth gives a different 3D point, all
+of which project to the exact same pixel in camera 1, but to different
+pixels in camera 2 as you slide along that ray. The set of all those
+possible camera-2 pixels traces out the epipolar line. So one image alone is
+ambiguous about depth — you need the second view (or a known depth, see
+below) to pin P down.
+
+## 3. If I actually know the depth
+
+Everything above holds even without knowing Z. But if the depth *is* known
+(say from a rangefinder, or because I fixed Z the way I did in Step 2), then
+`λ1` is known and P is fully pinned down — not just a ray:
+
+```
+X1 = λ1 K1⁻¹ p̃1
+λ2 p̃2 = K2 (R·X1 + t)
+```
+
+Dividing the right side by its own third component gives the exact pixel
+`(u2, v2)` in camera 2 — a single point, not a line. If you eliminate the
+now-known depth from these two equations, you get back exactly the epipolar
+line from part 2, which makes sense: knowing depth is what's collapsing that
+line down to one point.
+
+## 4. Where each parameter actually comes from
+
+| Symbol | What it is | How I'd get it |
+|---|---|---|
+| K1, K2 | intrinsics | Step 1 calibration for each camera (same matrix if it's the same phone) |
+| R | relative rotation | measured mounting angle, or estimated from image correspondences |
+| t | relative translation | measured baseline with a ruler, or estimated (up to scale) |
+| E = [t]×R | essential matrix | built from R, t once you have them |
+| F = K2⁻ᵀEK1⁻¹ | fundamental matrix | from E and the intrinsics, or straight from image correspondences via the 8-point algorithm |
+| P = (X,Y,Z) | the actual 3D point | triangulated once you have both views |
+
+**If R and t aren't known ahead of time**, they can be recovered from the
+images themselves:
+1. Find at least 8 matching points between the two photos (ORB or SIFT
+   features, matched between images).
+2. `cv2.findFundamentalMat(...)` — the 8-point algorithm — gets F directly
+   from the correspondences.
+3. `E = K2ᵀ F K1` (or just call `cv2.findEssentialMat` with K baked in).
+4. `cv2.recoverPose(E, pts1, pts2, K)` decomposes E via SVD into R and a
+   **unit-length** t.
+5. That unit t is the catch — from images alone, translation is only
+   recoverable up to an unknown scale (this is the classic monocular scale
+   ambiguity — a scene could be twice as big and twice as far away and
+   produce identical images). One known real-world length anywhere in the
+   scene fixes that scale, and then `cv2.triangulatePoints` gives the actual
+   P.

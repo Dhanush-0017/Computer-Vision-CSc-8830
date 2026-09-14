@@ -1,21 +1,13 @@
 """
-================================================================================
-modules/_template.py  --  Starting point for a new assignment module
-================================================================================
-The leading underscore keeps this file OUT of the navigation — app.py only
-picks up files named moduleN.py.
+_template.py -- copy this to start a new module.
 
-TO CREATE MODULE 7:
-    cp modules/_template.py modules/module7.py
-    - set NUMBER = 7
-    - set TITLE / SUBTITLE / STATUS
-    - write render()
-    Reload the browser. It appears in the sidebar automatically; app.py needs
-    no changes at all.
+Underscore prefix keeps it out of the sidebar (app.py only picks up files
+literally named moduleN.py). To make module 7: copy this to module7.py, set
+NUMBER/TITLE/SUBTITLE/STATUS, write render(), reload the browser -- app.py
+doesn't need any changes, it'll just show up.
 
-Shared helpers available:
-    from common import load_calib, save_calib, measure, decode_upload
-================================================================================
+common.py already has load_calib, save_calib, measure, decode_upload if the
+new module also needs a camera.
 """
 import numpy as np
 import pandas as pd

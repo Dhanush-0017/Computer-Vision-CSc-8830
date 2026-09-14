@@ -1,26 +1,25 @@
 """
-================================================================================
-validate.py  --  Validation & Error Statistics (Step 3)
-================================================================================
-Purpose : Run 20 measurements, compare each estimated dimension against a
-          tape-measured ground truth, and report error statistics.
+validate.py -- Step 3, checking how accurate Step 2 actually is.
 
-Input CSV (../data/measurements.csv) with columns:
+Takes the 20 rows in measurements.csv (each one a pixel pair + the Z I
+measured + the real length from a tape measure) and runs them all through
+measure(), then compares against the ground truth to get error stats.
+
+measurements.csv columns:
     id, Z_mm, u1, v1, u2, v2, gt_mm
-        Z_mm  : measured camera-to-object distance in mm (must be > 2000)
-        u1,v1 : first pixel point
-        u2,v2 : second pixel point
-        gt_mm : ground-truth length between the two points (tape measure), mm
+        Z_mm  : camera-to-object distance, tape measured, mm (>2000 per the
+                assignment spec)
+        u1,v1 / u2,v2 : the two clicked pixel points
+        gt_mm : the true length between them, also tape measured
 
-Output:
-    - a per-row table with estimate + error
-    - aggregate statistics: MAE, RMSE, MAPE, mean/std of signed error, max
-    - validation_results.csv  (and validation_plot.png with --plot)
+Prints MAE, RMSE, MAPE, mean/std of the signed error, and max error, and
+writes validation_results.csv. --plot also saves a measured-vs-ground-truth
+scatter and an error-vs-distance plot, mostly because "error grows with
+distance" is easier to show than to explain in text.
 
-How to run:
+Run:
     python validate.py --calib ../calibration/camera_params.npz \
                        --csv ../data/measurements.csv --plot
-================================================================================
 """
 import argparse
 import numpy as np

@@ -1,36 +1,19 @@
 """
-================================================================================
-app.py  --  CSc 8830 Computer Vision — Course Web Application
-================================================================================
-Single web application hosting EVERY assignment for the course, as required by
-the submission instructions ("all assignments must be accessible via that
-webpage").
+app.py -- the shell for the whole course portfolio site.
 
-ARCHITECTURE — modules are AUTO-DISCOVERED.
-    app.py does not hardcode a list of modules. On startup it scans the
-    modules/ package, imports every file named moduleN.py, reads its metadata,
-    and builds the navigation automatically. Scales to any number of modules
-    with no change to this file.
+The assignment says every module has to be reachable from one webpage, so
+instead of writing a separate app per module I made this one page that
+auto-discovers whatever lives in modules/. It scans modules/, imports every
+moduleN.py it finds, reads a few metadata fields off each one, and builds the
+sidebar from that. So dropping in module3.py, module4.py etc. later doesn't
+require touching this file at all -- it just shows up.
 
-TO ADD A NEW MODULE (e.g. Module 7):
-    1. cp modules/_template.py modules/module7.py
-    2. edit the NUMBER / TITLE / SUBTITLE / STATUS constants at the top
-    3. write the render() function
-    4. reload the browser — it appears in the sidebar automatically
-    There is NOTHING to edit in app.py.
+Each modules/moduleN.py needs to define:
+    NUMBER, TITLE, SUBTITLE, STATUS   -- shown in the sidebar / home cards
+    render()                          -- draws the actual page
 
-MODULE CONTRACT — each modules/moduleN.py must define:
-    NUMBER   : int          assignment number (used for ordering)
-    TITLE    : str          short name shown in the sidebar
-    SUBTITLE : str          one-line description for the home page
-    STATUS   : str          'complete' | 'in progress' | 'scheduled'
-    render() : callable     draws the page with Streamlit
-
-How to run:
-    cd src
-    streamlit run app.py
-Then open http://localhost:8501 in a browser.
-================================================================================
+Run with:
+    cd src && streamlit run app.py
 """
 import os
 import sys
@@ -58,9 +41,9 @@ REPO_URL = ''   # <- paste your GitHub URL here; shown on the home page
 def discover_modules():
     """Import every modules/moduleN.py and collect its metadata.
 
-    Returns a list of dicts sorted by module number. Import failures are
-    captured rather than raised, so one broken module cannot take down the
-    whole site — it appears in the sidebar with an error badge instead.
+    Returns a list of dicts sorted by module number. If one module blows up
+    on import, I don't want that to take the whole site down, so the
+    exception gets caught and shown as an error badge for just that module.
     """
     import modules as pkg
     found = []
@@ -71,6 +54,10 @@ def discover_modules():
             continue                      # skips _template.py, helpers, etc.
         try:
             full_name = 'modules.' + name
+            # plain import_module is a no-op once a module is already in
+            # sys.modules, so re-clicking "Reload modules" would otherwise
+            # keep serving whatever was loaded at process start. Force a
+            # real reload if it's already imported.
             if full_name in sys.modules:
                 mod = importlib.reload(sys.modules[full_name])
             else:

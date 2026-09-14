@@ -1,30 +1,26 @@
 """
-================================================================================
-measure.py  --  Real-World 2D Dimensions via Perspective Projection (Step 2)
-================================================================================
-Purpose : Convert pixel measurements into real-world dimensions using the
-          calibrated intrinsics and the KNOWN camera-to-object distance Z.
+measure.py -- Step 2, turning pixels into millimetres.
 
-The pinhole projection equations:
-        u = fx * X/Z + cx        ->    X = (u - cx) * Z / fx
-        v = fy * Y/Z + cy        ->    Y = (v - cy) * Z / fy
+Same idea as the Step 2 tab, just as a script. Given the calibration from
+Step 1 and a distance Z (measured with a tape measure from the camera to the
+object), it back-projects two clicked pixel points to real 3D coordinates
+and returns the distance between them.
 
-For two image points p1=(u1,v1) and p2=(u2,v2) on an object that is
-(approximately) fronto-parallel at depth Z, the real-world distance is:
-        D = sqrt( (X2 - X1)^2 + (Y2 - Y1)^2 )
+    u = fx*X/Z + cx   ->   X = (u - cx)*Z/fx
+    v = fy*Y/Z + cy   ->   Y = (v - cy)*Z/fy
+    D = sqrt((X2-X1)^2 + (Y2-Y1)^2)
 
-Assumption: the two points lie on a plane perpendicular to the optical axis
-at depth Z (i.e. the object faces the camera). Z is measured from the camera
-to that plane. Keep Z in the same units as --square during calibration (mm).
+Only works cleanly if both points are roughly the same distance from the
+camera -- i.e. the face you're measuring is facing the camera, not tilted.
+Keep Z in the same units you used for --square in calibrate.py (mm here).
 
-How to run (pixel coords already known):
+Run with known pixel coords:
     python measure.py --calib ../calibration/camera_params.npz \
                       --Z 2500 --p1 400 300 --p2 950 300
 
-How to run (click two points on an image):
+Run and click the two points on the image instead:
     python measure.py --calib ../calibration/camera_params.npz \
                       --Z 2500 --image ../data/obj.jpg
-================================================================================
 """
 import argparse
 import numpy as np
