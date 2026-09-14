@@ -1,247 +1,319 @@
-# Video script — Module 2 walkthrough (~10 min)
+# Video script — one take, Q&A style
 
-Read this basically as-is while you screen record. Each section has a rough
-time so the whole thing lands around 10 minutes — don't stress about hitting
-it exactly, just don't linger too long on any one tab.
-
-Have the app open already, on the Home page, before you hit record.
-
----
-
-## 0. Intro / project overview — ~1 min
-
-**Say:**
-"Hi, this is my Module 2 submission for CSc 8830, Computer Vision. This
-module is about measuring the real-world size of an object from a single
-smartphone photo. The overall idea has three steps: first I calibrate my
-phone's camera to figure out its internal parameters, then I use those
-parameters to convert pixel measurements into real-world millimeters using
-the pinhole projection equations, and then I validate that whole pipeline by
-running it on 20 real measurements and checking the error against a tape
-measure. There's also a theory section where I derive the relationship
-between how a 3D point shows up in two different cameras, which is the more
-general version of the same projection math.
-
-The whole thing runs as one web app built with Streamlit, and everything's
-on GitHub — I'll show the tabs one at a time."
-
-Click into Module 2 from the sidebar now.
+Read the **Q** silently (or skip it, it's just there so you know what
+you're answering), then say the **A** out loud while pointing at whatever's
+in the `[Point at: ...]` bracket. Go in this exact order. Don't rush —
+better to be a bit long and clear than fast and mumbled, since you're only
+recording once.
 
 ---
 
-## 1. Step 1 — Calibration — ~2 min
+## PART 0 — Before you hit record
 
-**Say:**
-"A camera takes a 3D scene and flattens it onto a 2D sensor. To go the other
-way — recover real-world size from a 2D photo — I first need to know the
-camera's internal parameters, mainly its focal length in pixels and where
-the optical axis actually hits the sensor. That's what calibration gives me.
+Have these ready in browser tabs:
+1. Your deployed app URL (the Streamlit Cloud one)
+2. Your GitHub repo page
+3. This script, on a second monitor or phone if possible
 
-I do this with a chessboard pattern, because it gives me free ground truth —
-I tell OpenCV the real square size in millimeters, so it knows exactly where
-every corner should be in 3D without me measuring anything by hand. The
-corners are also high-contrast X-junctions, so OpenCV can locate them to
-within a fraction of a pixel using cornerSubPix."
-
-*[Point at the uploaded images / already-run result]*
-
-"I took 18 photos of the board from different angles and distances — that
-matters, because if every photo were the same head-on angle, the math can't
-tell focal length apart from distance. Different angles give independent
-constraints."
-
-*[Point at the RMS reprojection error]*
-
-"This number is the reprojection error — I take the recovered camera
-parameters, project the known 3D corners back into each image, and measure
-how far off they land from where OpenCV actually detected them. Mine came
-out to about 0.39 pixels, which is under the half-pixel target I was aiming
-for."
-
-*[Point at K matrix]*
-
-"This is the intrinsic matrix K — fx and fy are the focal length in pixels,
-and cx, cy are the principal point, roughly the image center. These numbers
-are what Step 2 actually uses."
+Start recording, then begin.
 
 ---
 
-## 2. Step 2 — Measurement — ~2 min
+## PART 1 — What is this assignment, and why
 
-**Say:**
-"This is the actual measurement step. The idea is just similar triangles —
-an object's size in the image shrinks in proportion to how far away it is.
-If I know two of the three things — image size in pixels, real size, and
-distance — I can solve for the third. Here I know the calibration and I
-measure the distance Z with a tape measure, so I can solve for the real
-size."
+**Q: What is this assignment asking you to do?**
 
-*[Show the equations on screen]*
+**A:** "This is Module 2 for CSc 8830, Computer Vision. The assignment has
+four parts: first, calibrate a camera using OpenCV — that means figure out
+its internal parameters. Second, write a script that uses those parameters
+to find the real-world 2D size of an object from a single photo, using
+perspective projection. Third, validate that measurement approach over 20
+different measurements at a distance greater than 2 meters, and report
+error statistics. And fourth, a theory question — derive, mathematically,
+how the same 3D point looks in two different cameras at different positions.
 
-"The forward direction is u = fx·X/Z + cx. I need it backwards, so I
-rearrange to X = (u - cx)·Z/fx, same idea for Y. Each pixel I click
-back-projects to an actual 3D point at that known depth Z, and then the
-distance between my two clicked points is the real-world measurement."
+Everything has to run as one web application accessible through a link, the
+code has to be in a GitHub repo, and I need to record this video as proof it
+actually works."
 
-*[Upload a photo, enter Z, click two points]*
+**[Point at: GitHub repo page, e.g. the URL bar]**
 
-"I upload the object photo, enter the distance I measured with a tape
-measure, and click the two endpoints of whatever I'm measuring. The app
-back-projects both points and reports the distance in millimeters."
+"This is my repo — [read the URL out loud]. Everything I show in this video
+is in here."
 
-**Say this part even if not asked — it shows I understand the limitation:**
-"This assumes the face I'm measuring is roughly perpendicular to the optical
-axis, so both points are at basically the same depth. If the object is
-tilted, the two points are actually at slightly different real depths, and
-using one Z for both introduces error — that's actually something I ran
-into in my validation, which I'll get to."
+**[Point at: the deployed app URL]**
+
+"And this is the live app — [read URL] — this isn't running on my laptop,
+it's actually deployed, so anyone with the link can open it."
 
 ---
 
-## 3. Step 3 — Validation — ~2.5 min
+## PART 2 — app.py and how the site is put together
 
-**Say:**
-"For this step the assignment wants 20 measurements validated against ground
-truth. I used a MARTA Breeze card, which is the same standard size as a
-credit card — 85.6 by 53.98 millimeters — taped to a wall and photographed
-from four different distances, all past the 2-meter minimum. From those 4
-photos I pulled 5 independent measurements each — the width, both height
-edges, and both diagonals — to get to 20 total data points without needing
-20 separate photo sessions."
+**Q: What is app.py, and why does the site look the way it does?**
 
-*[Show the measurements.csv / uploaded table]*
+**A:** "Before I go into the actual assignment, quickly — this `app.py` file
+is the shell for the whole course. Instead of writing a separate site for
+every module, this one file scans a folder called `modules/`, and any file
+in there named `moduleN.py` automatically shows up in the sidebar. So Module
+2 here is just `modules/module2.py` — that's the file that actually has all
+the assignment code, and app.py never needed to change when I added it."
 
-"Each row has the distance Z, the two pixel points, and the true
-ground-truth length. Hitting compute runs all 20 through the same
-measurement function as Step 2, and compares against ground truth."
+**[Point at: the sidebar showing Module 2, 3, 4]**
 
-*[Point at the stats]*
+"Modules 3 and 4 are future assignments — they're just placeholders right
+now, marked 'scheduled', that's expected and not part of what I'm submitting
+today. Module 2 is the one that's complete."
 
-"My mean absolute error came out to about 1.6 millimeters, with a mean
-percentage error around 2.4%. One thing I noticed digging into this: the
-width measurements were consistently more accurate than the height and
-diagonal ones — off by under 3% versus sometimes 6-9%. I actually spent time
-checking whether this was a bug in my corner detection, but it held up even
-after I completely changed the detection method, so it's not that. My best
-explanation is that the card sits well off to one side of the image center,
-and the lens distortion correction — plus the fact that the phone probably
-wasn't held perfectly perpendicular to the wall — doesn't correct both axes
-equally at that off-center position. So the error isn't random noise, it's a
-systematic, explainable bias, which I think is a more useful finding than
-just reporting a single clean error number."
-
-*[Point at the plots]*
-
-"These two plots show measured versus ground truth — ideally everything
-sits on the red diagonal line — and error against distance, which shows the
-same pixel-level detection error turns into a bigger physical error the
-farther away the object is, since each pixel covers more real-world
-millimeters at range."
+Click into Module 2 now.
 
 ---
 
-## 4. Theory tab — ~2 min
+## PART 3 — Step 1: Calibration, and why a chessboard
 
-**Say:**
-"This section is the more general math problem — instead of one camera at a
-known depth, this is: given two different cameras looking at the same
-point, how do their two images relate to each other?
+**Q: What does calibration actually do, and why do we need it before we can
+measure anything?**
 
-Camera 1 I set as the world frame, just to remove one transform from the
-algebra — that's a free choice, no physical meaning. Camera 2 sits at some
-rotation R and offset t from camera 1. A point maps between the two frames
-as X2 = R·X1 + t.
+**A:** "A camera takes the 3D world and flattens it onto a 2D sensor. To go
+backwards — to take a 2D photo and recover a real-world size — I first need
+to know exactly how that camera projects things. Specifically I need its
+focal length in pixels, and where its optical center actually falls on the
+sensor. That's what calibration finds. Those numbers together are called the
+camera's intrinsic matrix, K."
 
-The key geometric step: the vectors X2, t, and R·X1 all lie in the same
-plane — you can see that directly from that equation rearranged — and three
-coplanar vectors means their scalar triple product is zero. Writing the
-cross product as a matrix gives the essential matrix E = [t]×R, and after
-putting the camera intrinsics back in, you get the fundamental matrix F,
-with the final relationship: p̃2 transpose times F times p̃1 equals zero."
+**Q: Why a chessboard specifically, and not just any object?**
 
-**The one insight that matters most — say this clearly:**
-"A single point in image 1 maps to a *line* in image 2, not a point. That's
-because one pixel only tells you the direction of the ray toward that 3D
-point, not how far along the ray it is. Every point along that ray looks
-identical in camera 1, but lands on different pixels in camera 2 — and that
-whole set of possible pixels is exactly the epipolar line. So one photo
-alone can't fully pin down a 3D point without knowing depth, which is
-exactly the problem Step 2 solved by measuring Z directly instead."
+**A:** "Because a chessboard gives me free, perfect ground truth. I tell
+OpenCV the real square size in millimeters — 22mm here — and from that it
+already knows exactly where every single corner should be in 3D space,
+without me measuring anything by hand. And the corners are sharp black/white
+X-junctions, which OpenCV can locate to a fraction of a pixel using a
+function called cornerSubPix. That precision is what makes the whole
+calibration accurate."
 
-*[If time — mention how R, t are found if unknown]*
+**Q: Why take many photos from different angles instead of just one?**
 
-"If R and t aren't known in advance, you can recover them from image
-correspondences — match at least 8 points between the two views, run the
-8-point algorithm to get F, convert to E using the intrinsics, and decompose
-E with recoverPose to get R and t. The catch is that t only comes out up to
-an unknown scale — from images alone you can't tell a small close object
-from a big far one — so you need one known real-world length somewhere in
-the scene to fix the actual scale."
+**A:** "Because one flat photo, especially straight-on, is what's called
+degenerate — mathematically, the algorithm can't tell focal length apart
+from distance from a single flat view. Every different angle I shoot from
+adds an independent constraint, so with enough varied angles the numbers
+converge on the actual right answer."
+
+**[Point at: the uploaded chessboard images]**
+
+"I ended up using 18 photos here. I actually started with 16, but 6 of them
+failed corner detection — some were photographed off a monitor screen
+instead of a printed board, which causes a moire interference pattern that
+confuses the detector, and a couple had the board too small and far away in
+the frame. I swapped those out for 8 better ones and got all 18 to pass."
+
+**[Point at: Run calibration button, then the results]**
+
+"Hitting Run Calibration runs OpenCV's calibrateCamera function on all the
+detected corners."
+
+**[Point at: RMS reprojection error]**
+
+"This number, reprojection error, is the real check of quality — I take the
+calibration's recovered parameters, project the known 3D chessboard corners
+back into each photo, and measure how far off they land from where the
+corners were actually detected. Mine came out to 0.39 pixels, which is
+solidly under the half-pixel target that's generally considered good."
+
+**[Point at: the K matrix / fx, fy, cx, cy values]**
+
+"fx and fy here are the focal length in pixels — they're not in millimeters,
+they're in pixels, because that's a mix of the physical focal length and how
+densely packed the sensor's pixels are, and pixels are exactly what I need
+since I'm about to measure everything in pixel coordinates. cx and cy are the
+principal point, roughly the image center."
 
 ---
 
-## 5. Wrap-up — ~15 sec
+## PART 4 — Step 2: turning pixels into real millimeters
 
-**Say:**
-"That covers all three steps plus the theory. Code and everything I used is
-on GitHub, link's in the description / PDF. Thanks for watching."
+**Q: How does Step 2 actually use those calibration numbers to measure
+something?**
+
+**A:** "This is just similar triangles, really. An object's size in the
+photo shrinks proportionally to how far away it is. The forward version of
+that is u = fx times X over Z, plus cx — that's how a real 3D point becomes
+a pixel. I need it backwards: I already know u and v, the pixel I clicked,
+and I know Z because I measured the real distance with a tape measure. So I
+just rearrange the equation to solve for X and Y — the actual real-world
+position — and the distance between two such points is the real-world
+measurement."
+
+**[Point at: the equations shown in the Step 2 tab]**
+
+"This caption right here is important — it says this assumes the face I'm
+measuring is roughly perpendicular to the camera, so both of my clicked
+points are at about the same depth Z. If the object were tilted, that
+assumption breaks and the measurement gets less accurate — that's actually
+something I ran directly into in my validation, which I'll get to."
+
+**[Upload a demo photo, enter Z, click two points]**
+
+"So here I upload a photo, type in the distance I measured, click the two
+endpoints of whatever I'm measuring, and it reports the real-world length in
+millimeters."
+
+---
+
+## PART 5 — Step 3: why these measurement images, why a card
+
+**Q: What are these measurement images, and why did you choose to measure a
+card?**
+
+**A:** "The assignment wants 20 different measurements validated against
+ground truth, at a distance over 2 meters. I taped a MARTA Breeze card to a
+wall — you can see it in these photos — and photographed it from four
+different distances, all past 2 meters. I picked this card specifically
+because it's a standardized size — it's the same ISO dimensions as a normal
+credit card, 85.6 by 53.98 millimeters — so I have exact, trustworthy ground
+truth without needing to physically tape-measure the card itself."
+
+**[Point at: the 4 measurement_images photos]**
+
+"There's also a notebook visible in these same photos, on the wall — I did
+not use that one for measurement, only the card, because the notebook
+doesn't have a standardized, verifiable real-world size the way the card
+does. Ground truth has to be something I can actually trust."
+
+**Q: The assignment wants 20 measurements — you only took 4 photos. How did
+you get to 20?**
+
+**A:** "From each of those 4 photos, I measured 5 different things off the
+same card: the width, both height edges — since the card isn't perfectly
+axis aligned in every shot, the left and right edges come out as slightly
+different pixel lengths — and both diagonals. That gives 5 independent
+measurements per photo, times 4 photos, equals 20 data points, without
+needing 20 separate photo sessions."
+
+**Q: How did you know the distance Z for these photos if you didn't tape-measure it?**
+
+**A:** "I didn't have a tape measurement for these specific 4 shots, so
+instead I used the card's own known width to solve for Z directly — since I
+already know the card is 85.6mm wide, and I can measure its width in pixels,
+I can invert the same projection equation to back out the distance. Then I
+used that same distance to predict the *other* 4 measurements — the height
+edges and diagonals — which weren't used to calculate Z, so comparing those
+against ground truth is still a fair, independent check, not circular."
+
+**[Point at: the measurements.csv table / Step 3 tab]**
+
+"Each row has the distance, the two pixel points, and the true length. This
+also confirms the actual distances came out to between 2.1 and 2.5 meters —
+so the over-2-meter requirement is satisfied."
+
+**[Click Compute error statistics, point at results]**
+
+**Q: What did you actually find, and does it match what the assignment
+asked for?**
+
+**A:** "My mean absolute error came out to about 1.6 millimeters, with a
+mean percentage error of roughly 2.4%. The assignment just asks to report
+error statistics — it doesn't set a required accuracy threshold — so
+technically this satisfies the requirement regardless of the exact number.
+But what's actually interesting is I noticed the width measurements were
+consistently more accurate, under 3% error, while the height and diagonal
+measurements were off by anywhere from 2% to 9%, and always in the same
+direction — always underestimating. I checked whether this was a bug in how
+I was detecting the card's corners, and it held up even after I completely
+rewrote the detection method, so it's not a bug. My conclusion is that it's
+a real geometric effect — the card sits well off to one side of the image
+rather than centered, and the lens distortion correction doesn't correct
+both axes equally at that off-center position, especially combined with the
+phone probably not being held perfectly perpendicular to the wall. So this
+isn't random noise, it's a systematic, explainable bias, which I think is a
+more useful finding than just a single clean error number."
+
+**[Point at: the two plots]**
+
+"This plot shows measured versus ground truth — everything should sit on
+this diagonal line if it were perfect. And this one shows error against
+distance, which shows the same one- or two-pixel detection error turns into
+a bigger real-world error the farther away the object is, since each pixel
+covers more real millimeters at range."
+
+---
+
+## PART 6 — Theory tab
+
+**Q: What is the theory question actually asking?**
+
+**A:** "Instead of one camera at a known distance, this is the more general
+problem: two different cameras, at different positions and angles, both
+looking at the same 3D point. How do the two images relate to each other?"
+
+**[Point at: the assumptions listed]**
+
+"I set camera 1's position as the world frame — that's just a free choice
+that simplifies the algebra, it doesn't lose any generality. Camera 2 sits
+at some rotation R and offset t relative to camera 1."
+
+**[Point at: the coplanarity / essential matrix section]**
+
+"The key step is noticing that a point's position in camera 2, the offset t,
+and the rotated point from camera 1 are all coplanar — you can see that
+directly from the equation X2 = R times X1 plus t, just rearranged. Three
+coplanar vectors means their scalar triple product is zero, and writing that
+cross product as a matrix gives what's called the essential matrix, E.
+Bringing the camera intrinsics back in turns that into the fundamental
+matrix, F, and the final relationship is: p2-transpose times F times p1
+equals zero."
+
+**Q: What's the single most important thing this result tells you?**
+
+**A:** "That one point in image 1 maps to a *line* in image 2, not a single
+point. That's because one pixel only tells you the direction of the ray
+toward that point — not how far along the ray it actually is. Every possible
+depth along that ray looks identical in camera 1, but lands on a different
+pixel in camera 2 — and that whole set of possible pixels is exactly this
+epipolar line. So a single photo alone is fundamentally ambiguous about
+depth — which is exactly why, back in Step 2, I had to directly measure Z
+with a tape measure instead of getting it from the image."
+
+**[If time allows, point at the R/t-unknown section]**
+
+"If R and t aren't known ahead of time, they can be recovered from image
+correspondences instead — match at least 8 points between the two photos,
+run the 8-point algorithm to get F, convert to E using the intrinsics, and
+decompose E to get R and t. The one catch is t only comes out up to an
+unknown scale — from images alone, a small close object and a big far one
+look identical — so you need one known real-world length somewhere in the
+scene to fix the actual scale."
+
+---
+
+## PART 7 — Wrap-up
+
+**A:** "That covers all three steps and the theory question. The repo link
+is [read it again], and the live app is at [read the URL again]. Thanks for
+watching."
 
 Stop recording.
 
 ---
 
-## If you get asked a question live
+## Quick answers if you get asked something live
 
-**"Why not just put a known-size object in every shot instead of
-calibrating?"**
-"That also works and skips calibration entirely, but it needs a
-known-size reference in every single photo. Calibrating once lets me
-measure anything afterward, as long as I know the distance."
+**"Why calibrate instead of just using a known-size reference object in
+every photo?"**
+"A reference object works too and skips calibration, but it needs to be in
+every single shot. Calibrating once lets me measure anything afterward, as
+long as I know the distance."
 
-**"What if you don't know Z at all?"**
-"Then a single image is fundamentally ambiguous — a small close object and
-a large far one can produce the exact same picture. You'd need a second
-camera view, a depth sensor, or a known reference object in frame."
+**"What if you don't know the distance Z at all?"**
+"Then a single photo is ambiguous — a small close object and a large far
+one can look identical. You'd need a second camera view, a depth sensor, or
+a known reference object in the frame."
 
-**"Why are fx and fy slightly different?"**
+**"Why are fx and fy slightly different numbers?"**
 "They'd be identical for perfectly square sensor pixels. The small
-difference just reflects real sensor geometry and normal calibration
-numerical tolerance."
+difference is normal sensor geometry and calibration tolerance."
 
 **"What's the biggest source of error in your validation?"**
-"Based on what I found, it's not random clicking error — it's the object
-being off-center in the frame combined with imperfect distortion correction
-and the camera not being perfectly perpendicular to the object. That shows
-up as a repeatable, directional bias rather than noise."
-
----
-
-## Connecting it to the lecture slides (mention this if your professor uses this notation)
-
-**On focal length in pixels vs. physical units:**
-"The focal length OpenCV reports isn't in millimeters — it's in pixels. It's
-the physical focal length multiplied by how many pixels fit per unit length
-on the sensor. That's exactly why I never had to know my phone's actual
-sensor size — the pixel units already absorb that, and pixels are what I'm
-measuring in anyway."
-
-**On why full projection is x = K[R|t]X, but Step 2 looks simpler:**
-"Step 2 is really the special case of that full projection equation where
-R is identity and the object sits at a constant depth Z — which collapses
-the general equation down to the simpler u = fx·X/Z + cx form I'm actually
-using."
-
-**On why we don't just solve for the projection matrix directly (direct
-linear calibration):**
-"That approach can't model radial lens distortion and it minimizes an
-algebraic error instead of actual reprojection error in pixels. OpenCV's
-calibrateCamera starts from something similar but then refines it with
-Levenberg-Marquardt to directly minimize reprojection error — which is
-exactly the number I reported in Step 1."
-
-**On why many chessboard angles matter (degenerate coplanar case):**
-"A single flat view, especially straight-on, is mathematically degenerate —
-you can't separate focal length from distance using one flat plane at one
-angle. Every additional distinct angle adds an independent constraint, which
-is why I shot from a bunch of different angles instead of just several
-similar ones."
+"Based on what I found, it's not random clicking noise — it's the card
+being off-center in the frame combined with imperfect distortion correction,
+which shows up as a repeatable, directional bias rather than noise."
