@@ -4,7 +4,7 @@ Measure the real-world 2D size of an object from a single smartphone photo,
 using camera calibration + the pinhole projection equations, and validate the
 accuracy over 20 measurements.
 
-**Repo link:** _add your GitHub URL here before submitting._
+**Repo link:** https://github.com/Dhanush-0017/Computer-Vision-CSc-8830
 
 ## Structure
 ```
