@@ -31,7 +31,7 @@ st.set_page_config(page_title='CSc 8830 — Computer Vision',
 STUDENT = 'Dhanush Nagarajan'
 SCHOOL = 'Georgia State University'
 COURSE = 'CSc 8830: Computer Vision'
-REPO_URL = ''   # <- paste your GitHub URL here; shown on the home page
+REPO_URL = 'https://github.com/Dhanush-0017/Computer-Vision-CSc-8830'
 
 
 # ----------------------------------------------------------------------------
