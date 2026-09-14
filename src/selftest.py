@@ -1,16 +1,13 @@
 """
-================================================================================
-selftest.py  --  Pipeline smoke test (run this BEFORE taking real photos)
-================================================================================
-Renders synthetic chessboard images, runs the full calibration + measurement
-pipeline on them, and checks the recovered numbers against the known truth.
+selftest.py -- sanity check before wasting a photo shoot.
 
-If this prints ALL CHECKS PASSED, your OpenCV install works with this code and
-you can safely go shoot real photos.
+I kept second-guessing whether a bad calibration run was my OpenCV setup or
+my actual photos, so this renders fake chessboard images with a *known* K,
+runs them through the exact same calibrate/measure pipeline, and checks
+whether it gets that K back out. If this passes, the code is fine and any
+problems later are the photos, not the script.
 
-Run:
-    python selftest.py
-================================================================================
+Run: python selftest.py
 """
 import sys
 import numpy as np

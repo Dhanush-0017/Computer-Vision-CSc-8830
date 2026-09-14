@@ -1,30 +1,23 @@
 """
-================================================================================
-calibrate.py  --  Camera Calibration (Step 1)
-================================================================================
-Purpose : Estimate the intrinsic matrix K and lens-distortion coefficients of a
-          smartphone camera using OpenCV's chessboard calibration.
+calibrate.py -- Step 1, camera calibration.
 
-How to run:
+Standalone command-line version of the Step 1 tab in the app. Point it at a
+folder of chessboard photos and it hands back the intrinsic matrix K and the
+distortion coefficients.
+
+Usage:
     python calibrate.py --images ../data/calibration_images \
                         --rows 6 --cols 9 --square 25.0 \
                         --out ../calibration/camera_params.npz
 
-Arguments:
-    --images : folder of chessboard photos taken with YOUR phone
-    --rows   : number of INNER corners along the short side of the board
-    --cols   : number of INNER corners along the long side
-               (a printed 10x7 board of squares has 9x6 inner corners)
-    --square : printed square size in millimetres (keep units consistent
-               with Z later; this does NOT change the intrinsics)
-    --out    : where the calibration is saved (.npz)
+--rows/--cols are INNER corners, not squares -- a 10x7-square printed board
+has 9x6 inner corners, which is what OpenCV actually detects. --square is the
+real side length of one square in mm; whatever units you use here is what Z
+has to be in later, since that's what ties pixels back to real distance.
 
-Tips:
-    - Print a chessboard (search "OpenCV chessboard 9x6"), tape it flat.
-    - Take 15-25 photos from varied angles/distances, board filling
-      different parts of the frame each time.
-    - Aim for a reprojection error < ~0.5 px.
-================================================================================
+Aim for reprojection error under ~0.5 px. If a lot of images get skipped,
+it's almost always the photos themselves -- moire from photographing a
+screen instead of a printed board, or the board too small/blurry in frame.
 """
 import argparse
 import glob
