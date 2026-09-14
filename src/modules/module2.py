@@ -49,7 +49,7 @@ def render():
         c1, c2, c3 = st.columns(3)
         cols = c1.number_input('Inner corners (long side)', 2, 20, 9)
         rows = c2.number_input('Inner corners (short side)', 2, 20, 6)
-        square = c3.number_input('Square size (mm)', 1.0, 100.0, 22.0)
+        square = c3.number_input('Square size (mm)', 1.0, 100.0, 30.0)
 
         files = st.file_uploader('Chessboard images', type=['jpg', 'jpeg', 'png'],
                                  accept_multiple_files=True)

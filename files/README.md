@@ -49,7 +49,7 @@ Opens at `http://localhost:8501`. Module 2 is in the sidebar.
 Chessboard photos go in `data/calibration_images/`. In the app that's just an
 upload box; from the terminal it's:
 ```
-python calibrate.py --images ../data/calibration_images --rows 6 --cols 9 --square 22.0
+python calibrate.py --images ../data/calibration_images --rows 6 --cols 9 --square 30.0
 ```
 `--rows`/`--cols` are inner corners, not squares. I aimed for reprojection
 error under 0.5 px — took a few tries, mostly because photographing a
