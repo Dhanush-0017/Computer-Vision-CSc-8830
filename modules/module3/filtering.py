@@ -2,7 +2,7 @@
 filtering.py
 
 All the blurring math for Module 3, kept in one place so the Streamlit page
-(`modules/module3.py`) and the command-line scripts (`blur.py`,
+(`modules/module3/__init__.py`) and the command-line scripts (`blur.py`,
 `verify_convolution.py`) are provably running the same code. Same reason
 `common.py` exists for Module 2 -- if the app and the scripts each had their
 own copy of the convolution, a "proof" that the two domains agree would only

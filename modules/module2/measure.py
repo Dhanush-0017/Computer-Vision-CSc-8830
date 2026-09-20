@@ -15,12 +15,12 @@ camera -- i.e. the face you're measuring is facing the camera, not tilted.
 Keep Z in the same units you used for --square in calibrate.py (mm here).
 
 Run with known pixel coords:
-    python measure.py --calib ../calibration/camera_params.npz \
+    python measure.py --calib calibration/camera_params.npz \
                       --Z 2500 --p1 400 300 --p2 950 300
 
 Run and click the two points on the image instead:
-    python measure.py --calib ../calibration/camera_params.npz \
-                      --Z 2500 --image ../data/obj.jpg
+    python measure.py --calib calibration/camera_params.npz \
+                      --Z 2500 --image data/obj.jpg
 """
 import argparse
 import numpy as np

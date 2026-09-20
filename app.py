@@ -13,7 +13,7 @@ Each modules/moduleN.py needs to define:
     render()                          -- draws the actual page
 
 Run with:
-    cd src && streamlit run app.py
+    streamlit run app.py
 """
 import os
 import sys
@@ -125,7 +125,7 @@ def home(mods):
                     st.caption('_' + m['status'].title() + '_')
 
     st.divider()
-    st.caption('Each module is a self-contained page under `src/modules/`. '
+    st.caption('Each module is a self-contained folder under `modules/`. '
                'The navigation is generated automatically from the files '
                'present, so new assignments drop in without modifying the app.')
 

@@ -1,13 +1,17 @@
 """
 _template.py -- copy this to start a new module.
 
-Underscore prefix keeps it out of the sidebar (app.py only picks up files
-literally named moduleN.py). To make module 7: copy this to module7.py, set
-NUMBER/TITLE/SUBTITLE/STATUS, write render(), reload the browser -- app.py
-doesn't need any changes, it'll just show up.
+Underscore prefix keeps it out of the sidebar (app.py only picks up entries
+under modules/ whose name starts with "module"). Each module is its own
+self-contained folder: to make module 7, create modules/module7/, put this
+file in there as __init__.py, set NUMBER/TITLE/SUBTITLE/STATUS, write
+render(), and put any of that module's own helper files/data alongside it in
+the same folder. Reload the browser -- app.py doesn't need any changes, it'll
+just show up.
 
-common.py already has load_calib, save_calib, measure, decode_upload if the
-new module also needs a camera.
+modules/module2/common.py has load_calib, save_calib, measure, decode_upload
+if a future module also needs a camera -- copy the pattern, don't import
+across module folders.
 """
 import numpy as np
 import pandas as pd

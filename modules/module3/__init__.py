@@ -1,6 +1,6 @@
 """
 ================================================================================
-modules/module3.py  --  Module 3: Image Blurring & the Convolution Theorem
+modules/module3 -- Module 3: Image Blurring & the Convolution Theorem
 ================================================================================
 CSc 8830 (Computer Vision), Module 3. Rendered inside `app.py`; see the repo
 README for how to run the site.
@@ -9,7 +9,7 @@ What the assignment asks for, and where each part lives on this page:
 
   "Implement image blurring using a filtering approach."
       -> tab 1. Box and Gaussian kernels applied by an explicit 2D convolution
-         I wrote out in src/filtering.py. No cv2.blur / cv2.GaussianBlur.
+         I wrote out in filtering.py. No cv2.blur / cv2.GaussianBlur.
 
   "Show that the outcome using spatial filters is the same as using the
    Fourier domain equivalent of the filter. Show that convolution in space
@@ -40,7 +40,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-import filtering as F
+from . import filtering as F
 
 # --- metadata read by app.py to build the navigation ------------------------
 NUMBER = 3
@@ -49,8 +49,8 @@ SUBTITLE = ('Box and Gaussian blurring by explicit 2D convolution, shown to be '
             'identical to multiplying by the filter in the Fourier domain.')
 STATUS = 'complete'
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-SAMPLE = os.path.join(ROOT, 'data', 'module3_samples', 'sample_photo.jpg')
+HERE = os.path.dirname(os.path.abspath(__file__))
+SAMPLE = os.path.join(HERE, 'data', 'module3_samples', 'sample_photo.jpg')
 
 # Naive spatial convolution costs O(H*W*k^2). Past roughly a quarter of a
 # megapixel with a large kernel the page stops feeling interactive, so the
@@ -189,7 +189,7 @@ def _tab_blur():
     st.subheader('Blurring by explicit spatial convolution')
     st.markdown(
         'Both filters here are applied by the from-scratch convolution in '
-        '`src/filtering.py` — it loops over the kernel taps and accumulates '
+        '`filtering.py` — it loops over the kernel taps and accumulates '
         'shifted copies of the image, which is the direct definition of '
         'convolution with the per-pixel loops moved into numpy. '
         '`cv2.blur` and `cv2.GaussianBlur` are not used anywhere on this page.')
@@ -528,7 +528,7 @@ def _tab_example():
         'The image experiments are convincing but not checkable with a pencil. '
         'Here is the same claim on an 8-sample 1D signal, small enough that '
         'every number is visible. The hand-worked version of this is in '
-        '`docs/theory_module3.md` and in the submitted PDF.')
+        '`modules/module3/theory.md` and in the submitted PDF.')
 
     f = np.array([0., 0., 0., 9., 9., 0., 0., 0.])
     st.markdown('**Signal** `f` (a rectangular pulse) and **filter** `h`, a '
@@ -598,7 +598,7 @@ def _tab_theory():
         'why they must. I am giving the discrete (DFT) version, because that '
         'is what the code actually computes — the continuous Fourier-transform '
         'proof is the same three steps with integrals in place of sums, and '
-        'both are written out in `docs/theory_module3.md`.')
+        'both are written out in `modules/module3/theory.md`.')
 
     st.markdown('**Setup.** An N×M image `f`, a filter `h` padded to the same '
                 'size, and the 2D DFT:')
@@ -655,7 +655,7 @@ def _tab_theory():
         'that transforms to itself.')
 
     st.caption('Full derivation, the continuous-domain version, and the '
-               'hand-worked numeric example: `docs/theory_module3.md`.')
+               'hand-worked numeric example: `modules/module3/theory.md`.')
 
 
 # ---------------------------------------------------------------------------

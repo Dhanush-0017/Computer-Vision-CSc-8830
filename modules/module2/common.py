@@ -10,8 +10,8 @@ import os
 import numpy as np
 import cv2
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CALIB_PATH = os.path.join(ROOT, 'calibration', 'camera_params.npz')
+HERE = os.path.dirname(os.path.abspath(__file__))
+CALIB_PATH = os.path.join(HERE, 'calibration', 'camera_params.npz')
 
 
 def load_calib():

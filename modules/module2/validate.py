@@ -18,8 +18,8 @@ scatter and an error-vs-distance plot, mostly because "error grows with
 distance" is easier to show than to explain in text.
 
 Run:
-    python validate.py --calib ../calibration/camera_params.npz \
-                       --csv ../data/measurements.csv --plot
+    python validate.py --calib calibration/camera_params.npz \
+                       --csv data/measurements.csv --plot
 """
 import argparse
 import numpy as np

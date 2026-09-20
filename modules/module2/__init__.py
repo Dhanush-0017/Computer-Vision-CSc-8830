@@ -1,5 +1,5 @@
 """
-modules/module2.py -- Module 2: Object Dimension Measurement.
+modules/module2/__init__.py -- Module 2: Object Dimension Measurement.
 
 This is the Streamlit version of calibrate.py / measure.py / validate.py
 combined into one page with tabs, so I don't have to run three separate CLI
@@ -19,7 +19,7 @@ SUBTITLE = ('Camera calibration and perspective projection to recover real-world
             '2D dimensions from a single image, validated over 20 experiments.')
 STATUS = 'complete'
 
-from common import load_calib, save_calib, measure, decode_upload, CALIB_PATH
+from .common import load_calib, save_calib, measure, decode_upload, CALIB_PATH
 
 try:
     from streamlit_image_coordinates import streamlit_image_coordinates as img_coords
