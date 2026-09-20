@@ -1,10 +1,10 @@
 """
-blur.py -- Module 3, blurring from the command line.
+blur.py -- Module 3 blurring from the command line.
 
-Same job as tab 1 of the web app, same code underneath (`filtering.py`), just
-without Streamlit in the way. This is what I actually developed against before
-wiring the UI up, and it is the quickest way to reproduce a result from the
-report without clicking through the site.
+Does the same thing as tab 1 of the web app and uses the same code
+(`filtering.py`), just without Streamlit. This is what I built and tested
+against first, and it is the fastest way to reproduce a result from the report
+without clicking through the site.
 
 Usage
 -----

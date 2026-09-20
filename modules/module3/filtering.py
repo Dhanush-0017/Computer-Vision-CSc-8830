@@ -1,44 +1,28 @@
 """
-filtering.py
+filtering.py -- all the blurring math for Module 3.
 
-All the blurring math for Module 3, kept in one place so the Streamlit page
-(`modules/module3/__init__.py`) and the command-line scripts (`blur.py`,
-`verify_convolution.py`) are provably running the same code. Same reason
-`common.py` exists for Module 2 -- if the app and the scripts each had their
-own copy of the convolution, a "proof" that the two domains agree would only
-be proving something about whichever copy I happened to run.
+Kept in one file so the web page and the command-line scripts (blur.py,
+verify_convolution.py) run the same code. If they each had their own copy of
+the convolution, "the two domains agree" wouldn't prove much.
 
-Nothing in here calls cv2.filter2D, cv2.blur or cv2.GaussianBlur to do the
-actual work. The whole point of the assignment is the filtering itself, so
-the spatial convolution is written out from scratch with numpy indexing, and
-the frequency-domain version uses only the FFT. OpenCV shows up exactly once,
-in `reference_opencv()`, which I use purely as an independent sanity check
-that my from-scratch version is correct.
+I don't use cv2.filter2D / cv2.blur / cv2.GaussianBlur to do the blurring --
+writing the filter is the assignment. OpenCV is used once, in
+reference_opencv(), only to check my version against something I didn't write.
 
-The one thing worth reading before the rest of this file: the DFT implements
-*circular* convolution, not linear convolution. Multiplying two DFTs and
-transforming back wraps the image around at the borders. So "does the spatial
-result equal the Fourier result" only has a yes/no answer once you say which
-boundary rule the spatial version used. Match the boundary handling
-(`boundary='wrap'` vs `convolve_fft_circular`) and they agree to floating-point
-noise; mismatch it and they differ in a border strip of exactly (k-1)/2 pixels
-and nowhere else. Both cases are demonstrated in the app, because the second
-one is the more instructive picture.
-
-Convention note: this module computes true convolution, so the kernel is
-flipped before it is applied. For the symmetric blur kernels here (box and
-Gaussian) flipping changes nothing, but writing correlation and calling it
-convolution would make the Fourier comparison an accident rather than a proof.
+Important: the DFT gives *circular* convolution (the image wraps at the
+borders). So "spatial == Fourier" is only true if the spatial side wraps too.
+Match them and they agree to ~1e-13; mismatch them and they differ only in a
+(k-1)/2 border strip.
 """
 import time
 
 import numpy as np
 
-# numpy pad mode for each boundary rule I expose in the UI.
-#   wrap      -- circular; the one the DFT implicitly assumes
-#   zero      -- pad with 0 (linear convolution); darkens the border
-#   reflect   -- mirror across the edge pixel, OpenCV's BORDER_REFLECT_101
-#   replicate -- repeat the edge pixel, OpenCV's BORDER_REPLICATE
+# numpy pad mode for each boundary option in the UI.
+#   wrap      = circular, what the DFT assumes
+#   zero      = pad with 0 (linear convolution), darkens the border
+#   reflect   = mirror at the edge, same as OpenCV BORDER_REFLECT_101
+#   replicate = repeat the edge pixel, same as OpenCV BORDER_REPLICATE
 _PAD_MODE = {
     'wrap': 'wrap',
     'zero': 'constant',
@@ -52,12 +36,10 @@ BOUNDARIES = tuple(_PAD_MODE)
 # Kernels
 # ---------------------------------------------------------------------------
 def box_kernel(size):
-    """size x size mean filter, normalised so the image keeps its brightness.
+    """size x size mean filter. Every tap is 1/size^2.
 
-    Every tap is 1/size^2. Summing to 1 is what makes this a *blur* rather
-    than a blur plus a gain -- if the taps summed to S, the whole image would
-    come out S times brighter, which in the frequency domain is just
-    H(0,0) = S instead of 1.
+    Taps must sum to 1, otherwise the image also gets brighter/darker instead
+    of just blurring.
     """
     size = int(size)
     if size < 1 or size % 2 == 0:
@@ -66,12 +48,11 @@ def box_kernel(size):
 
 
 def gaussian_kernel_1d(size, sigma):
-    """1D Gaussian, sampled and then normalised to sum to 1.
+    """1D Gaussian, sampled then divided by its own sum.
 
-    Normalising the *sampled* kernel rather than trusting the analytic
-    1/(sigma*sqrt(2*pi)) factor matters: the continuous Gaussian has infinite
-    support and I'm truncating it to `size` taps, so the samples I keep don't
-    quite sum to 1 on their own. Dividing by the actual sum puts that back.
+    I normalise by the actual sum instead of the analytic 1/(sigma*sqrt(2pi)):
+    the real Gaussian is infinite and I'm cutting it off at `size` taps, so the
+    samples I keep don't add up to 1 on their own.
     """
     size = int(size)
     if size < 1 or size % 2 == 0:
@@ -85,22 +66,20 @@ def gaussian_kernel_1d(size, sigma):
 
 
 def gaussian_kernel(size, sigma):
-    """2D Gaussian as the outer product of two 1D Gaussians.
+    """2D Gaussian = outer product of two 1D Gaussians.
 
-    The 2D Gaussian is separable -- exp(-(x^2+y^2)/2s^2) factors into
-    exp(-x^2/2s^2) * exp(-y^2/2s^2) -- which is why `convolve_separable`
-    below can do the same job in O(k) work per pixel instead of O(k^2).
+    Works because exp(-(x^2+y^2)/2s^2) splits into exp(-x^2/2s^2) *
+    exp(-y^2/2s^2). That's also why convolve_separable() below works.
     """
     g = gaussian_kernel_1d(size, sigma)
     return np.outer(g, g)
 
 
 def suggested_size_for_sigma(sigma):
-    """Odd kernel width that captures ~99.7% of a Gaussian with this sigma.
+    """Kernel width covering +/-3 sigma (~99.7% of the Gaussian).
 
-    Cutting a Gaussian off at +/-3 sigma is the usual rule of thumb. Cutting
-    it much tighter leaves a visible discontinuity at the kernel edge, which
-    shows up as ringing in the transfer function.
+    Standard rule of thumb. Cut it much tighter and the kernel ends with a
+    visible jump, which causes ringing.
     """
     size = int(2 * np.ceil(3.0 * float(sigma)) + 1)
     return max(3, size)
@@ -110,22 +89,17 @@ def suggested_size_for_sigma(sigma):
 # Spatial domain
 # ---------------------------------------------------------------------------
 def convolve_spatial(image, kernel, boundary='wrap'):
-    """2D convolution written out by hand. Works on 2D or 3D (colour) arrays.
+    """2D convolution, written out. Handles 2D (gray) and 3D (colour).
 
-    The direct definition is
-
+    The definition is:
         out[y, x] = sum_i sum_j  h[i, j] * f[y - i + cy, x - j + cx]
 
-    with (cy, cx) the kernel centre. Rather than looping over pixels in
-    Python -- which for a 12MP image and a 21x21 kernel is ~5 billion
-    interpreted operations -- I loop over the *kernel taps* (at most a few
-    hundred) and let numpy do each whole-image shift-and-accumulate as one
-    vectorised operation. It is the same arithmetic in the same order, just
-    with the loops transposed so the inner one runs in C.
+    Looping over pixels in Python would be far too slow, so I loop over the
+    kernel taps instead (a few hundred at most) and let numpy do each
+    whole-image shift as one operation. Same arithmetic, loops swapped.
 
-    Boundary handling is done by padding first and then taking plain slices,
-    so every output pixel is computed by the identical expression and there
-    is no special case at the edges.
+    I pad the image first, so every output pixel uses the same expression and
+    there's no special case at the edges.
     """
     f = np.asarray(image, dtype=np.float64)
     h = np.asarray(kernel, dtype=np.float64)
@@ -134,7 +108,7 @@ def convolve_spatial(image, kernel, boundary='wrap'):
     if boundary not in _PAD_MODE:
         raise ValueError('boundary must be one of %s' % (BOUNDARIES,))
 
-    if f.ndim == 3:            # colour: filter each channel independently
+    if f.ndim == 3:            # colour: do each channel separately
         return np.stack([convolve_spatial(f[..., c], h, boundary)
                          for c in range(f.shape[2])], axis=-1)
 
@@ -142,15 +116,13 @@ def convolve_spatial(image, kernel, boundary='wrap'):
     cy, cx = kh // 2, kw // 2
     H, W = f.shape
 
-    # Pad so that f[y - i + cy, x - j + cx] is always in range. Working
-    # through the index limits: i runs 0..kh-1, so the row index reaches as
-    # low as cy - (kh - 1) and as high as H - 1 + cy. Hence (kh-1-cy) rows
-    # before and cy rows after.
+    # How much padding: i goes 0..kh-1, so the row index reaches down to
+    # cy-(kh-1) and up to H-1+cy. That's (kh-1-cy) rows before, cy rows after.
     pad = ((kh - 1 - cy, cy), (kw - 1 - cx, cx))
     mode = _PAD_MODE[boundary]
     P = np.pad(f, pad, mode=mode) if mode != 'constant' else np.pad(f, pad, mode='constant', constant_values=0.0)
 
-    # After padding, f[y - i + cy] sits at P[y + kh - 1 - i].
+    # After padding, f[y - i + cy] lives at P[y + kh - 1 - i].
     out = np.zeros((H, W), dtype=np.float64)
     for i in range(kh):
         r0 = kh - 1 - i
@@ -164,13 +136,11 @@ def convolve_spatial(image, kernel, boundary='wrap'):
 
 
 def convolve_separable(image, kernel_1d, boundary='wrap'):
-    """Apply a separable kernel as two 1D passes (rows, then columns).
+    """Separable kernel done as two 1D passes: rows, then columns.
 
-    Same result as convolving with np.outer(k, k), but the cost per pixel
-    drops from k^2 multiply-adds to 2k. I include it because the speed
-    comparison in the app is otherwise unfair to the spatial domain: the
-    honest question is "FFT vs the *best* spatial method", not "FFT vs the
-    naive one".
+    Same answer as convolving with np.outer(k, k), but 2k multiply-adds per
+    pixel instead of k^2. I added this so the speed comparison is fair -- the
+    real question is FFT vs the *best* spatial method, not the naive one.
     """
     k = np.asarray(kernel_1d, dtype=np.float64).ravel()
     row = k.reshape(1, -1)
@@ -186,15 +156,11 @@ _CV_BORDER = {
 
 
 def reference_opencv(image, kernel, boundary='reflect'):
-    """cv2.filter2D for cross-checking only -- never used for the deliverable.
+    """cv2.filter2D, used only to check my convolution. Not used for results.
 
-    Two details matter for this to be a fair check. First, cv2.filter2D
-    computes *correlation*, so I flip the kernel to turn it into convolution;
-    with symmetric blur kernels the flip is a no-op, but being sloppy here
-    would defeat the purpose of the check. Second, OpenCV refuses
-    BORDER_WRAP in filter2D, so the cross-check runs in 'reflect' mode --
-    which is fine, since what I am testing is my convolution arithmetic, and
-    the wrap case is already pinned down by the Fourier comparison itself.
+    Two gotchas: filter2D does correlation, not convolution, so I flip the
+    kernel (no-op for symmetric blur kernels, but the check should be honest).
+    And filter2D rejects BORDER_WRAP, so this check runs in 'reflect' mode.
     """
     import cv2
     if boundary not in _CV_BORDER:
@@ -211,14 +177,13 @@ def reference_opencv(image, kernel, boundary='reflect'):
 # Frequency domain
 # ---------------------------------------------------------------------------
 def kernel_to_psf(kernel, shape):
-    """Embed the kernel in an image-sized array with its centre at index (0,0).
+    """Put the kernel in an image-sized array with its centre at index (0,0).
 
-    This is the step people usually get wrong. The DFT treats index 0 as the
-    origin, but my kernel's origin is its middle tap. If I just drop the
-    kernel into the top-left corner and transform it, the result is correct
-    up to a linear phase ramp -- which comes back as the whole image being
-    shifted diagonally by (cy, cx) pixels. Rolling the centre tap to (0, 0)
-    first is what removes that shift.
+    This is the step that's easy to get wrong. The DFT treats index 0 as the
+    origin, but the kernel's origin is its middle tap. Drop the kernel in the
+    top-left and transform it and the blur comes out shifted diagonally by
+    (cy, cx) pixels -- easy to miss, because a shifted blur still looks blurry.
+    np.roll fixes it.
     """
     h = np.asarray(kernel, dtype=np.float64)
     kh, kw = h.shape
@@ -231,19 +196,16 @@ def kernel_to_psf(kernel, shape):
 
 
 def transfer_function(kernel, shape):
-    """H(u, v): the DFT of the padded, centred kernel. The filter's frequency response."""
+    """H(u, v) -- the DFT of the padded kernel, i.e. the filter's frequency response."""
     return np.fft.fft2(kernel_to_psf(kernel, shape))
 
 
 def convolve_fft_circular(image, kernel):
     """Blur by multiplying in the Fourier domain: F(u,v) * H(u,v), then invert.
 
-    This is the convolution theorem applied literally, and it is the exact
-    counterpart of convolve_spatial(..., boundary='wrap') -- same arithmetic,
-    different route. The imaginary part of the inverse transform is pure
-    round-off (both inputs are real, so the spectrum is conjugate-symmetric
-    and the result must be real); I return its size from `compare` so it can
-    be reported rather than silently discarded.
+    This is the convolution theorem used directly. It's the counterpart of
+    convolve_spatial(..., boundary='wrap'). Both inputs are real so the result
+    must be real; the imaginary part is round-off, so I take np.real.
     """
     f = np.asarray(image, dtype=np.float64)
     if f.ndim == 3:
@@ -254,13 +216,12 @@ def convolve_fft_circular(image, kernel):
 
 
 def convolve_fft_linear(image, kernel):
-    """Fourier-domain convolution that reproduces *linear* (zero-padded) filtering.
+    """Fourier version that gives *linear* (zero-padded) convolution instead.
 
-    Circular wrap-around is an artefact of the DFT's periodicity, not of
-    convolution. Zero-padding both signals to at least (H+kh-1, W+kw-1)
-    gives the wrap-around nowhere to land, so the product of the DFTs now
-    equals linear convolution -- matching convolve_spatial(..., 'zero')
-    instead. Cropping back to the original size takes the 'same' region.
+    The wrap-around is a side effect of the DFT being periodic, not of
+    convolution itself. Zero-pad both to (H+kh-1, W+kw-1) and the wrap has
+    nowhere to land, so the DFT product now equals linear convolution --
+    matching convolve_spatial(..., 'zero'). Then crop back to the middle.
     """
     f = np.asarray(image, dtype=np.float64)
     if f.ndim == 3:
@@ -269,8 +230,8 @@ def convolve_fft_linear(image, kernel):
     h = np.asarray(kernel, dtype=np.float64)
     kh, kw = h.shape
     H, W = f.shape
-    # next_fast_len would be faster still; plain H+kh-1 keeps the padding
-    # arithmetic obvious, which matters more here than the last few ms.
+    # next_fast_len would be a bit faster, but plain H+kh-1 keeps the padding
+    # easy to follow.
     sh, sw = H + kh - 1, W + kw - 1
     F = np.fft.fft2(f, s=(sh, sw))
     Hf = np.fft.fft2(h, s=(sh, sw))
@@ -283,14 +244,12 @@ def convolve_fft_linear(image, kernel):
 # Comparing the two routes
 # ---------------------------------------------------------------------------
 def compare(a, b, peak=255.0):
-    """Error metrics between two versions of the same blurred image.
+    """Error metrics between the two blurred versions of the same image.
 
-    max_abs is the number that actually settles the question: if the two
-    domains are doing the same thing, it should sit at the level of
-    double-precision round-off accumulated over the transform (~1e-10 or
-    smaller for 8-bit-valued inputs), not at the level of a visible pixel
-    difference. PSNR is included because it is the familiar image-quality
-    number, but it saturates and is the less informative of the two here.
+    max_abs is the one that answers the question. If both routes do the same
+    thing it should be down at float64 round-off (~1e-13 here), not at the
+    level of a pixel you could see. PSNR is here because it's the familiar
+    number, but it saturates and says less.
     """
     a = np.asarray(a, dtype=np.float64)
     b = np.asarray(b, dtype=np.float64)
@@ -306,11 +265,10 @@ def compare(a, b, peak=255.0):
 
 
 def difference_map(a, b, gain=None):
-    """|a - b| stretched to 0..255 so a difference of 1e-13 is actually visible.
+    """|a - b| stretched to 0..255 so a 1e-13 difference is actually visible.
 
-    Displayed without the stretch, an all-round-off difference image is just
-    a black rectangle, which proves the point but shows nothing. `gain` is
-    reported alongside the picture so the stretch is not mistaken for signal.
+    Without the stretch the difference image is just a black rectangle. I
+    return the gain too, so the brightness isn't mistaken for real signal.
     """
     d = np.abs(np.asarray(a, np.float64) - np.asarray(b, np.float64))
     if d.ndim == 3:
@@ -322,13 +280,11 @@ def difference_map(a, b, gain=None):
 
 
 def log_spectrum(x, is_spectrum=False):
-    """log(1 + |X|) with DC shifted to the middle -- the standard way to look at a spectrum.
+    """log(1 + |X|) with DC moved to the middle -- the usual way to view a spectrum.
 
-    The raw magnitude spans several orders of magnitude between DC and the
-    high frequencies, so on a linear scale every image looks like a single
-    bright dot in the corner. The log compresses that; fftshift just moves
-    DC from the corner to the centre so the picture is symmetric about the
-    middle and easier to read.
+    Raw magnitudes span several orders of magnitude, so on a linear scale you
+    just see one bright dot in the corner. The log compresses that, and
+    fftshift moves DC to the centre so the picture is symmetric.
     """
     X = np.asarray(x) if is_spectrum else np.fft.fft2(np.asarray(x, np.float64))
     mag = np.abs(np.fft.fftshift(X))
@@ -338,23 +294,22 @@ def log_spectrum(x, is_spectrum=False):
 
 
 def timed(fn, *args, **kwargs):
-    """Run fn and return (result, elapsed_seconds). perf_counter, not time()."""
+    """Run fn, return (result, seconds). perf_counter, not time()."""
     t0 = time.perf_counter()
     result = fn(*args, **kwargs)
     return result, time.perf_counter() - t0
 
 
 # ---------------------------------------------------------------------------
-# Test imagery (so the demo works with no uploads)
+# Test images (so the demo works without uploading anything)
 # ---------------------------------------------------------------------------
 def synthetic(kind='checkerboard', size=256):
-    """Generated test images, as float arrays in 0..255.
+    """Generated test images as float arrays in 0..255.
 
-    Real photographs are the convincing demo, but synthetic patterns are the
-    better *test*: a checkerboard is mostly high frequency, a step edge has a
-    known analytic response to a box filter, and white noise has a flat
-    expected spectrum, so I can predict what the filter should do to each and
-    check that it did.
+    A photo is the nicer demo, but these are the better *test*: I know what a
+    blur should do to each one, so I can check the output. A checkerboard is
+    nearly all high frequency, a step edge has a known box-filter response,
+    white noise has a flat spectrum.
     """
     n = int(size)
     if kind == 'checkerboard':
@@ -370,15 +325,14 @@ def synthetic(kind='checkerboard', size=256):
         r = np.sqrt((yy - n / 2.0) ** 2 + (xx - n / 2.0) ** 2)
         return np.where(r < n / 3.5, 255.0, 30.0)
     if kind == 'white noise':
-        rng = np.random.default_rng(8830)      # fixed seed: reruns are comparable
+        rng = np.random.default_rng(8830)      # fixed seed so reruns match
         return rng.uniform(0, 255, (n, n))
     if kind == 'sine grating':
         xx = np.arange(n)
         return 127.5 + 110.0 * np.sin(2 * np.pi * xx / 16.0)[None, :] * np.ones((n, 1))
     if kind == 'impulse':
-        # The impulse response: blurring a single lit pixel returns the kernel
-        # itself, which is the most direct demonstration that the filter *is*
-        # the point spread function.
+        # Blurring one lit pixel gives back the kernel itself, which is the
+        # simplest way to show the filter IS its point spread function.
         img = np.zeros((n, n))
         img[n // 2, n // 2] = 255.0
         return img
@@ -390,12 +344,12 @@ SYNTHETIC_KINDS = ('checkerboard', 'step edge', 'circle',
 
 
 def to_uint8(x):
-    """Clip to 0..255 and cast, for display only. Never feed this back into the math."""
+    """Clip to 0..255 and cast. Display only -- don't feed this back into the math."""
     return np.clip(np.asarray(x), 0, 255).astype(np.uint8)
 
 
 def to_gray(img):
-    """Luminance, using the Rec.601 weights OpenCV uses. Input may be RGB or already gray."""
+    """Luminance using the Rec.601 weights OpenCV uses. Input may be RGB or gray."""
     a = np.asarray(img, dtype=np.float64)
     if a.ndim == 2:
         return a
