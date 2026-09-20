@@ -6,9 +6,9 @@ folder of chessboard photos and it hands back the intrinsic matrix K and the
 distortion coefficients.
 
 Usage:
-    python calibrate.py --images ../data/calibration_images \
+    python calibrate.py --images data/calibration_images \
                         --rows 6 --cols 9 --square 30.0 \
-                        --out ../calibration/camera_params.npz
+                        --out calibration/camera_params.npz
 
 --rows/--cols are INNER corners, not squares -- a 10x7-square printed board
 has 9x6 inner corners, which is what OpenCV actually detects. --square is the
@@ -32,7 +32,7 @@ def main():
     ap.add_argument('--rows', type=int, default=6, help='inner corners (short side)')
     ap.add_argument('--cols', type=int, default=9, help='inner corners (long side)')
     ap.add_argument('--square', type=float, default=30.0, help='square size in mm')
-    ap.add_argument('--out', default='../calibration/camera_params.npz')
+    ap.add_argument('--out', default='calibration/camera_params.npz')
     args = ap.parse_args()
 
     pattern = (args.cols, args.rows)

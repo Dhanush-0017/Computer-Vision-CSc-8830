@@ -1,7 +1,6 @@
 """
-================================================================================
-modules/module4.py  --  Module 4: Human Boundary Detection (RGB & Thermal)
-================================================================================
+modules/module4 -- Module 4: Human Boundary Detection (RGB & Thermal)
+
 PLACEHOLDER — to be implemented.
 
 Assignment:
@@ -10,7 +9,6 @@ Assignment:
   2. Same for a thermal image. Compare against SAM2.
   3. Theory: derive how edge detection and region segmentation can be achieved
      through Fourier (frequency) domain analysis.
-================================================================================
 """
 import streamlit as st
 

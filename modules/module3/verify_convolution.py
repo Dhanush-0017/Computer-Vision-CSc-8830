@@ -19,9 +19,9 @@ This is the script behind the numbers in the report. It does three things:
 
 Usage
 -----
-    cd src
+    cd modules/module3
     python verify_convolution.py --selftest
-    python verify_convolution.py --experiment --image ../data/module3_samples/sample_photo.jpg
+    python verify_convolution.py --experiment --image data/module3_samples/sample_photo.jpg
     python verify_convolution.py --timing
     python verify_convolution.py --all          # all three
 
@@ -251,7 +251,7 @@ def main():
     p.add_argument('--timing', action='store_true')
     p.add_argument('--all', action='store_true')
     p.add_argument('--image',
-                   default=os.path.join(HERE, '..', 'data', 'module3_samples',
+                   default=os.path.join(HERE, 'data', 'module3_samples',
                                         'sample_photo.jpg'))
     p.add_argument('--side', type=int, default=384)
     p.add_argument('--max-kernel', type=int, default=31)
