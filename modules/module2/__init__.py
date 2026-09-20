@@ -216,7 +216,7 @@ def render():
                 'u2': [0.0] * 20, 'v2': [0.0] * 20, 'gt_mm': [0.0] * 20})
             df = pd.read_csv(csv) if csv else default
 
-            edited = st.data_editor(df, num_rows='dynamic', use_container_width=True)
+            edited = st.data_editor(df, num_rows='dynamic', width='stretch')
 
             if st.button('Compute error statistics', type='primary'):
                 d = edited[edited.gt_mm > 0].copy()
@@ -231,7 +231,7 @@ def render():
 
                     e = d.error_mm.values
                     p = d.error_pct.values
-                    st.dataframe(d, use_container_width=True)
+                    st.dataframe(d, width='stretch')
 
                     st.subheader('Error statistics')
                     a, b, c, dd = st.columns(4)
