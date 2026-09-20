@@ -174,27 +174,28 @@ _PATTERN_NOTE = {
 def _kernel_controls(key, default_size=9):
     """Filter picker shared by the tabs. Returns (kernel, label, kernel_1d_or_None)."""
     c1, c2 = st.columns(2)
-    kind = c1.selectbox('Filter', ['Gaussian', 'Box (mean)'], key=key + '_kind')
+    kind = c1.selectbox('Filter', ['Gaussian', 'Box (mean)'], key=key + '_flt_kind')
     if kind == 'Box (mean)':
         size = c2.slider('Kernel size (odd)', 3, 31, default_size, step=2,
-                         key=key + '_size')
+                         key=key + '_flt_size')
         return F.box_kernel(size), 'box %dx%d' % (size, size), None
-    sigma = c2.slider('Sigma', 0.5, 8.0, 2.0, step=0.1, key=key + '_sigma')
+    sigma = c2.slider('Sigma', 0.5, 8.0, 2.0, step=0.1, key=key + '_flt_sigma')
     auto = st.checkbox('Size kernel automatically (±3σ)', value=True,
-                       key=key + '_auto')
+                       key=key + '_flt_auto')
     if auto:
         size = F.suggested_size_for_sigma(sigma)
         st.caption('Kernel size %d x %d, from the ±3σ rule.' % (size, size))
     else:
         size = st.slider('Kernel size (odd)', 3, 41, default_size, step=2,
-                         key=key + '_gsize')
+                         key=key + '_flt_gsize')
     k1 = F.gaussian_kernel_1d(size, sigma)
     return np.outer(k1, k1), 'Gaussian σ=%.1f, %dx%d' % (sigma, size, size), k1
 
 
 def _show(img, caption, width=None):
-    st.image(F.to_uint8(img), caption=caption, use_container_width=(width is None),
-             width=width, clamp=True)
+    # width=None means fill the column, otherwise use the pixel width given
+    st.image(F.to_uint8(img), caption=caption,
+             width=('stretch' if width is None else width), clamp=True)
 
 
 def _fig(figure):
@@ -202,7 +203,7 @@ def _fig(figure):
     buf = io.BytesIO()
     figure.savefig(buf, format='png', dpi=110, bbox_inches='tight')
     plt.close(figure)
-    st.image(buf.getvalue(), use_container_width=True)
+    st.image(buf.getvalue(), width='stretch')
 
 
 # ---------------------------------------------------------------------------
@@ -333,7 +334,7 @@ def _tab_equivalence():
     with c3:
         dmap, gain = F.difference_map(a, b)
         st.image(dmap, caption='|A − B|, brightness ×%.3g' % gain,
-                 use_container_width=True)
+                 width='stretch')
 
     m = F.compare(a, b)
     st.markdown('**Measured difference between the two routes**')
@@ -417,13 +418,13 @@ def _tab_spectra():
     c1, c2, c3 = st.columns(3)
     with c1:
         st.image(F.log_spectrum(Fu, True), caption='|F(u,v)| — the image',
-                 use_container_width=True)
+                 width='stretch')
     with c2:
         st.image(F.log_spectrum(Hu, True), caption='|H(u,v)| — the filter (%s)' % label,
-                 use_container_width=True)
+                 width='stretch')
     with c3:
         st.image(F.log_spectrum(Gu, True), caption='|F·H| — the product',
-                 use_container_width=True)
+                 width='stretch')
     st.caption('All three are log(1+|·|) with DC shifted to the centre. '
                'Bright centre, dark rim in the middle panel is exactly what a '
                'low-pass filter should look like.')
@@ -510,7 +511,7 @@ def _tab_timing():
     _fig(fig)
 
     st.dataframe(df[['kernel', 'spatial_naive_s', 'spatial_separable_s', 'fft_s']],
-                 use_container_width=True, hide_index=True)
+                 width='stretch', hide_index=True)
 
     naive = df['spatial_naive_s'].to_numpy()
     fft = df['fft_s'].to_numpy()
@@ -566,7 +567,7 @@ def _tab_example():
     st.markdown('**Route A — circular convolution, done term by term**')
     st.dataframe(pd.DataFrame({'n': range(N), 'f[n]': f,
                                '(f*h)[n]': np.round(direct, 6)}),
-                 use_container_width=True, hide_index=True)
+                 width='stretch', hide_index=True)
 
     st.markdown('**Route B — multiply the DFTs, then transform back**')
     st.dataframe(pd.DataFrame({
@@ -575,7 +576,7 @@ def _tab_example():
         'H[k]': [('%+.3f%+.3fi' % (z.real, z.imag)) for z in Hf],
         '(F·H)[k]': [('%+.3f%+.3fi' % (z.real, z.imag)) for z in Ff * Hf],
         'IDFT': np.round(viaf, 6)}),
-        use_container_width=True, hide_index=True)
+        width='stretch', hide_index=True)
 
     st.success('Largest disagreement between the two columns: **%.2e**. '
                'The pulse of height 9 spread over 2 samples comes back as '

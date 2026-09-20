@@ -15,15 +15,16 @@ Each modules/moduleN.py needs to define:
 Run with:
     streamlit run app.py
 """
+import importlib.util
 import os
 import sys
-import pkgutil
-import importlib
 import traceback
 
 import streamlit as st
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+HERE = os.path.dirname(os.path.abspath(__file__))
+MODULES_DIR = os.path.join(HERE, 'modules')
+sys.path.insert(0, HERE)
 
 st.set_page_config(page_title='CSc 8830 — Computer Vision',
                    page_icon='📷', layout='wide')
@@ -39,32 +40,53 @@ REPO_URL = 'https://github.com/Dhanush-0017/Computer-Vision-CSc-8830'
 # ----------------------------------------------------------------------------
 @st.cache_resource(show_spinner=False)
 def discover_modules():
-    """Import every modules/moduleN.py and collect its metadata.
+    """Find every modules/moduleN/ folder and load its page.
 
-    Returns a list of dicts sorted by module number. If one module blows up
-    on import, I don't want that to take the whole site down, so the
-    exception gets caught and shown as an error badge for just that module.
+    I look at the folder on disk rather than doing `import modules`, because
+    "modules" is a generic name and on Streamlit Cloud something else had
+    already claimed it, so the import found nothing and the sidebar came up
+    empty. Loading each one straight from its file path can't be shadowed.
+
+    If a module fails to load, only that one gets an error badge - the rest of
+    the site still works.
     """
-    import modules as pkg
     found = []
+    if not os.path.isdir(MODULES_DIR):
+        return found
 
-    for info in pkgutil.iter_modules(pkg.__path__):
-        name = info.name
+    for name in sorted(os.listdir(MODULES_DIR)):
         if not name.startswith('module'):
-            continue                      # skips _template.py, helpers, etc.
+            continue                      # skips _template.py and anything else
+
+        path = os.path.join(MODULES_DIR, name)
+        if os.path.isdir(path):
+            init = os.path.join(path, '__init__.py')
+            mod_name = name
+        elif name.endswith('.py'):        # still works if a module is one file
+            init = path
+            mod_name = name[:-3]
+        else:
+            continue
+        if not os.path.exists(init):
+            continue
+
+        digits = ''.join(ch for ch in mod_name if ch.isdigit())
         try:
-            full_name = 'modules.' + name
-            # plain import_module is a no-op once a module is already in
-            # sys.modules, so re-clicking "Reload modules" would otherwise
-            # keep serving whatever was loaded at process start. Force a
-            # real reload if it's already imported.
+            full_name = 'modules.' + mod_name
             if full_name in sys.modules:
+                # "Reload modules" should pick up edits, and a plain import is
+                # a no-op once it's already in sys.modules
                 mod = importlib.reload(sys.modules[full_name])
             else:
-                mod = importlib.import_module(full_name)
+                spec = importlib.util.spec_from_file_location(
+                    full_name, init,
+                    submodule_search_locations=[path] if os.path.isdir(path) else None)
+                mod = importlib.util.module_from_spec(spec)
+                sys.modules[full_name] = mod
+                spec.loader.exec_module(mod)
+
             num = getattr(mod, 'NUMBER', None)
-            if num is None:               # fall back to digits in the filename
-                digits = ''.join(ch for ch in name if ch.isdigit())
+            if num is None:
                 num = int(digits) if digits else 999
             found.append({
                 'number': num,
@@ -75,10 +97,10 @@ def discover_modules():
                 'error': None,
             })
         except Exception:
-            digits = ''.join(ch for ch in name if ch.isdigit())
+            sys.modules.pop('modules.' + mod_name, None)
             found.append({
                 'number': int(digits) if digits else 999,
-                'title': name + ' (failed to load)',
+                'title': mod_name + ' (failed to load)',
                 'subtitle': '', 'status': 'error', 'render': None,
                 'error': traceback.format_exc(),
             })
@@ -103,6 +125,16 @@ def home(mods):
 
     st.markdown('This web application hosts every assignment for the course. '
                 'Select a module from the sidebar.')
+
+    if not mods:
+        # If this ever shows up it means discovery found nothing, so print
+        # where it looked instead of just showing an empty sidebar.
+        st.error('No modules were found.')
+        st.write('Looked in:', MODULES_DIR)
+        st.write('Exists:', os.path.isdir(MODULES_DIR))
+        if os.path.isdir(MODULES_DIR):
+            st.write('Contents:', sorted(os.listdir(MODULES_DIR)))
+        st.write('Running from:', HERE)
     st.write('')
 
     done = sum(1 for m in mods if m['status'] == 'complete')
@@ -145,7 +177,7 @@ labels = ['🏠  Home'] + [
 choice = st.sidebar.radio('Navigate', labels, label_visibility='collapsed')
 
 st.sidebar.divider()
-if st.sidebar.button('🔄 Reload modules', use_container_width=True):
+if st.sidebar.button('🔄 Reload modules', width='stretch'):
     discover_modules.clear()
     st.rerun()
 st.sidebar.caption(STUDENT + '  \n' + SCHOOL)
