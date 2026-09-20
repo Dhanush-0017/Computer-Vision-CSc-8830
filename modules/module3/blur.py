@@ -11,7 +11,7 @@ Usage
     cd modules/module3
 
     # 9x9 box blur, spatial route, written next to the input
-    python blur.py --image data/module3_samples/sample_photo.jpg \
+    python blur.py --image data/module3_samples/text_journal.jpg \
                    --filter box --size 9 --out data/module3_samples/blur_box9.png
 
     # Gaussian sigma=3, kernel size chosen automatically, Fourier route

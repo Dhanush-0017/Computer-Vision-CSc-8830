@@ -371,19 +371,19 @@ The max difference is ~1e-15. It behaves exactly as the 1D case does, because th
 
 ## 8. Experimental validation on real images
 
-`python verify_convolution.py --experiment` blurs the sample photo (384×512,
+`python verify_convolution.py --experiment` blurs the sample photo (1160×1200,
 grayscale) by both routes across a range of kernels. Measured:
 
 | filter | spatial (s) | FFT (s) | max abs diff | mean abs diff | RMSE | PSNR |
 |---|---|---|---|---|---|---|
-| box 3×3 | 0.0019 | 0.0134 | 1.71e-13 | 2.58e-14 | 3.43e-14 | 317.4 dB |
-| box 5×5 | 0.0043 | 0.0041 | 2.27e-13 | 3.61e-14 | 4.69e-14 | 314.7 dB |
-| box 9×9 | 0.0104 | 0.0033 | 4.83e-13 | 6.73e-14 | 9.07e-14 | 309.0 dB |
-| box 15×15 | 0.0288 | 0.0037 | 9.10e-13 | 1.95e-13 | 2.46e-13 | 300.3 dB |
-| gauss 9, σ=1.5 | 0.0101 | 0.0034 | 2.84e-13 | 4.71e-14 | 6.11e-14 | 312.4 dB |
-| gauss 15, σ=2.5 | 0.0272 | 0.0031 | 5.68e-13 | 7.33e-14 | 9.88e-14 | 308.2 dB |
-| gauss 21, σ=3.5 | 0.0535 | 0.0035 | 7.11e-13 | 9.33e-14 | 1.23e-13 | 306.3 dB |
-| gauss 31, σ=5.0 | 0.1169 | 0.0031 | 8.81e-13 | 1.27e-13 | 1.65e-13 | 303.8 dB |
+| box 3×3 | 0.0092 | 0.0459 | 2.27e-13 | 3.17e-14 | 4.09e-14 | 315.9 dB |
+| box 5×5 | 0.0121 | 0.0352 | 2.56e-13 | 3.20e-14 | 4.17e-14 | 315.7 dB |
+| box 9×9 | 0.0386 | 0.0330 | 5.12e-13 | 4.28e-14 | 5.86e-14 | 312.8 dB |
+| box 15×15 | 0.1056 | 0.0330 | 1.08e-12 | 9.85e-14 | 1.36e-13 | 305.4 dB |
+| gauss 9, σ=1.5 | 0.0382 | 0.0331 | 3.13e-13 | 4.29e-14 | 5.51e-14 | 313.3 dB |
+| gauss 15, σ=2.5 | 0.1057 | 0.0328 | 4.83e-13 | 5.59e-14 | 7.36e-14 | 310.8 dB |
+| gauss 21, σ=3.5 | 0.2084 | 0.0331 | 6.82e-13 | 7.65e-14 | 1.02e-13 | 308.0 dB |
+| gauss 31, σ=5.0 | 0.4550 | 0.0344 | 9.09e-13 | 1.07e-13 | 1.44e-13 | 305.0 dB |
 
 Pixel values run 0–255. A worst-case disagreement of 1e-13 is about one part in
 10¹⁵ — a few units in the last place of a double, which is what a few thousand
@@ -405,7 +405,7 @@ max difference over the whole image        : 7.06e+01
 max difference with the 7-px border cropped: 5.68e-13
 ```
 
-70 grey levels of disagreement at the border; 5.7e-13 — i.e. none — everywhere
+56 grey levels of disagreement at the border; 4.8e-13 — i.e. none — everywhere
 else. The border strip is 7 pixels, which is exactly (15−1)/2. Section 5 predicted
 both the magnitude and the location.
 
@@ -427,16 +427,16 @@ The two routes give the same answer, so the choice is purely about cost.
 
 | kernel | spatial, naive 2D | spatial, separable | FFT |
 |---|---|---|---|
-| 3×3 | 0.0016 s | 0.0010 s | 0.0049 s |
-| 7×7 | 0.0046 s | 0.0014 s | 0.0027 s |
-| 11×11 | 0.0111 s | 0.0019 s | 0.0026 s |
-| 15×15 | 0.0208 s | 0.0025 s | 0.0027 s |
-| 19×19 | 0.0333 s | 0.0030 s | 0.0027 s |
-| 23×23 | 0.0488 s | 0.0036 s | 0.0027 s |
-| 27×27 | 0.0671 s | 0.0041 s | 0.0026 s |
-| 31×31 | 0.0886 s | 0.0046 s | 0.0027 s |
+| 3×3 | 0.0007 s | 0.0005 s | 0.0029 s |
+| 7×7 | 0.0027 s | 0.0009 s | 0.0026 s |
+| 11×11 | 0.0061 s | 0.0011 s | 0.0023 s |
+| 15×15 | 0.0116 s | 0.0015 s | 0.0024 s |
+| 19×19 | 0.0182 s | 0.0019 s | 0.0024 s |
+| 23×23 | 0.0265 s | 0.0022 s | 0.0023 s |
+| 27×27 | 0.0395 s | 0.0029 s | 0.0025 s |
+| 31×31 | 0.0518 s | 0.0031 s | 0.0026 s |
 
-The FFT column is **flat** — 0.0026 to 0.0027 s once past the first
+The FFT column is **flat** — 0.0023 to 0.0029 s once past the first
 warm-up measurement — because the kernel is padded to the image size before
 transforming, so a 3×3 and a 31×31 filter are literally the same amount of work.
 The naive spatial column grows by 55× across the same range, tracking k² as

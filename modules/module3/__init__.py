@@ -37,7 +37,19 @@ SUBTITLE = ('Box and Gaussian blurring by explicit 2D convolution, shown to be '
 STATUS = 'complete'
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SAMPLE = os.path.join(HERE, 'data', 'module3_samples', 'sample_photo.jpg')
+SAMPLE_DIR = os.path.join(HERE, 'data', 'module3_samples')
+
+# Three photos, each picked to show a different thing about blurring.
+# Handwriting is the clearest "before and after", the brick wall is the one to
+# look at in the spectra tab because a repeating pattern shows up as distinct
+# spots, and the building has hard edges against flat sky so you can see the
+# box filter ring where the Gaussian doesn't.
+SAMPLES = {
+    'Handwritten page (fine detail)': 'text_journal.jpg',
+    'Brick wall (repeating pattern)': 'brick_wall.jpg',
+    'Building against sky (hard edges)': 'building_sky.jpg',
+}
+DEFAULT_SAMPLE = 'Handwritten page (fine detail)'
 
 # Naive spatial convolution costs O(H*W*k^2). Past roughly a quarter of a
 # megapixel with a large kernel the page stops feeling interactive, so the
@@ -50,12 +62,14 @@ MAX_SIDE = 512
 # Image plumbing
 # ---------------------------------------------------------------------------
 @st.cache_data(show_spinner=False)
-def _load_sample():
-    """The bundled photo, as a float array. Borrowed from Module 2's data/ and
-    downscaled -- Module 3 has no calibration requirement, so any image does;
-    this one is here only so the demo runs with nothing uploaded."""
+def _load_sample(filename):
+    """Load one of the bundled photos as a float array.
+
+    These are here so the demo runs with nothing uploaded. Module 3 has no
+    requirement about which image is used, so any photo works.
+    """
     import cv2
-    img = cv2.imread(SAMPLE)
+    img = cv2.imread(os.path.join(SAMPLE_DIR, filename))
     if img is None:
         return None
     return cv2.cvtColor(img, cv2.COLOR_BGR2RGB).astype(np.float64)
@@ -89,10 +103,16 @@ def _pick_image(key):
                    horizontal=True, key=key + '_src')
     img = None
     if src == 'Sample photo':
-        img = _load_sample()
+        names = list(SAMPLES)
+        choice = st.selectbox('Photo', names,
+                              index=names.index(DEFAULT_SAMPLE),
+                              key=key + '_sample')
+        img = _load_sample(SAMPLES[choice])
         if img is None:
-            st.warning('Sample photo not found at data/module3_samples/ — '
-                       'pick a generated pattern or upload an image.')
+            st.warning('Could not find %s in data/module3_samples/ — pick a '
+                       'generated pattern or upload an image.' % SAMPLES[choice])
+        else:
+            st.caption(_SAMPLE_NOTE.get(choice, ''))
     elif src == 'Generated test pattern':
         kind = st.selectbox('Pattern', F.SYNTHETIC_KINDS, key=key + '_kind')
         img = F.synthetic(kind, 256)
@@ -115,6 +135,22 @@ def _pick_image(key):
                    'stays interactive. The math is unaffected — it just runs '
                    'on fewer pixels.' % (img.shape[1], img.shape[0]))
     return img
+
+
+_SAMPLE_NOTE = {
+    'Handwritten page (fine detail)':
+        'Lots of fine strokes, so the blur is obvious straight away — the '
+        'writing stops being readable well before the page stops being a page.',
+    'Brick wall (repeating pattern)':
+        'The rows of bricks repeat at a regular spacing, so in tab 3 the '
+        'spectrum shows distinct spots instead of a blob. Blurring dims those '
+        'spots, which is the convolution theorem in one picture.',
+    'Building against sky (hard edges)':
+        'Hard edges against flat sky. Good for comparing box vs Gaussian in '
+        'tab 3 — the box filter rings near a sharp edge, the Gaussian does '
+        'not. The sky itself barely changes, since it has almost no detail to '
+        'lose.',
+}
 
 
 _PATTERN_NOTE = {
