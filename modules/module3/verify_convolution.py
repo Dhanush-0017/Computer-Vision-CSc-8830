@@ -25,11 +25,10 @@ Usage
     python verify_convolution.py --timing
     python verify_convolution.py --all          # all three
 
-Why a self-test at all: the claim being made is "these two things are equal",
-and the cheapest way to fake that claim is a bug that makes both routes call
-the same code. The assertions below pin each route against something external
-to it -- OpenCV, an analytic result, or a different algorithm -- so agreement
-means agreement.
+Why bother with a self-test: the claim is "these two things are equal", and the
+easiest way to accidentally fake that is a bug where both routes end up calling
+the same code. So each check below compares against something outside that
+route -- OpenCV, a known analytic answer, or a different algorithm.
 """
 import argparse
 import os

@@ -3,13 +3,13 @@
 CSc 8830 (Computer Vision) — Module 3
 Dhanush Nagarajan, Georgia State University
 
-This is the written half of Module 3. The assignment asks for two things: an
-implementation of image blurring by filtering, and a demonstration that doing
-that filtering in the spatial domain gives the same result as the Fourier-domain
-equivalent — that convolution in space is multiplication in frequency. The code
-is in `src/filtering.py`, the live demonstration is tab 2 of the Module 3 page in
-the web app, and the argument for *why* it has to come out that way is below,
-along with a small example worked out by hand.
+This is the written part of Module 3. The assignment asks for two things: blur
+an image using a filtering approach, and show that filtering in the spatial
+domain gives the same result as the Fourier-domain version, i.e. that
+convolution in space is multiplication in frequency. The code is in
+`filtering.py`, the live demo is tab 2 of the Module 3 page in the web app, and
+the reason it has to work out that way is below, plus a small example I worked
+through by hand.
 
 ---
 
@@ -28,14 +28,15 @@ Two kernels are used in this module.
 weighting: each neighbour in the window counts the same.
 
 **Gaussian filter.** `h(x, y) ∝ exp(−(x² + y²) / 2σ²)`, sampled on the kernel
-grid and then normalised so the taps sum to 1. I truncate at ±3σ, which keeps
-about 99.7% of the mass; cutting much tighter leaves a step at the kernel's edge,
-and section 6 explains why a step in one domain is expensive in the other.
+grid and then divided by its own sum so the taps add to 1. I cut it off at ±3σ,
+which keeps about 99.7% of it. Cutting much tighter leaves a visible step at the
+edge of the kernel, and section 6 explains why a step in one domain causes
+trouble in the other.
 
-Both kernels are normalised so that **Σ h = 1**. That is not cosmetic. Section 4
-shows Σ h is exactly `H(0,0)`, the filter's gain at zero frequency — the DC term,
-which is the image's average brightness. A kernel summing to 1.2 would brighten
-the image by 20% as well as blurring it.
+Both kernels are normalised so **Σ h = 1**. This matters. Section 4 shows Σ h
+is exactly `H(0,0)`, the filter's gain at zero frequency, which is the image's
+average brightness. A kernel summing to 1.2 would make the image 20% brighter as
+well as blurring it.
 
 The Gaussian is **separable**: `exp(−(x²+y²)/2σ²) = exp(−x²/2σ²) · exp(−y²/2σ²)`,
 so a 2D Gaussian blur is a 1D blur along the rows followed by a 1D blur down the
@@ -43,12 +44,12 @@ columns. That drops the cost from k² multiply–adds per pixel to 2k.
 `convolve_separable()` implements this, and the self-test asserts it agrees with
 the full 2D convolution to ~1e-13.
 
-One more definition that makes the rest of this cleaner. Convolve an image that
-is zero everywhere except a single pixel of value 1, and the result *is* the
-kernel, printed into the image at that location. So the kernel is the filter's
-**impulse response**, or in imaging terms its **point spread function**: the
-picture of what the system does to a single point of light. The self-test checks
-this too, and it comes out exactly equal, not approximately.
+One more definition, because it makes the rest easier. If you convolve an image
+that is zero everywhere except one pixel set to 1, the result *is* the kernel,
+stamped at that spot. So the kernel is the filter's **impulse response**, or its
+**point spread function** in imaging terms: what the filter does to a single
+point of light. The self-test checks this, and it comes out exactly equal, not
+just close.
 
 ---
 
@@ -178,7 +179,7 @@ easy to miss.
 
 ---
 
-## 5. The one honest caveat: circular vs linear convolution
+## 5. The catch: circular vs linear convolution
 
 Step 3 used "shifting `h` wraps around" as a fact. It is a fact about the DFT,
 not about photographs. The DFT has no way to represent an image that simply
@@ -361,7 +362,7 @@ Identical. Not similar — identical to the precision the arithmetic is carried 
 
 ### The same thing in 2D
 
-`src/verify_convolution.py --selftest` runs the 2D version on a 4×4 array with a
+`verify_convolution.py --selftest` runs the 2D version on a 4×4 array with a
 3×3 box kernel, and tab 5 of the app displays all three matrices side by side.
 The max difference is ~1e-15. It behaves exactly as the 1D case does, because the
 2D transform is just the 1D transform applied along rows and then along columns.
@@ -473,6 +474,6 @@ there and back. Below the crossover that fixed cost is not worth paying.
 - The routes differ only in cost: O(k²) per pixel versus O(log N) per pixel, with
   the crossover here at k = 7.
 
-**Files:** `src/filtering.py` (the implementation), `src/blur.py` (CLI),
-`src/verify_convolution.py` (the self-test, the equivalence experiment, the
-timing sweep), `src/modules/module3.py` (the web app page).
+**Files:** `filtering.py` (the implementation), `blur.py` (CLI),
+`verify_convolution.py` (the self-test, the equivalence experiment, the
+timing sweep), `__init__.py` (the web app page).
