@@ -16,7 +16,7 @@ theory doc, and **its own README**.
 |---|---|---|---|
 | 2 | Camera calibration & object dimension measurement | `modules/module2/` | [README](modules/module2/README.md) |
 | 3 | Image blurring & the convolution theorem | `modules/module3/` | [README](modules/module3/README.md) |
-| 4 | Human boundary detection | `modules/module4/` | placeholder, not started |
+| 4 | Human boundary detection (RGB & thermal, vs SAM2) + Fourier theory | `modules/module4/` | [README](modules/module4/README.md) |
 
 There's no Module 1 — Module 2 was the first assignment with code to submit.
 
@@ -54,7 +54,12 @@ modules/
     theory.md
     data/
   module4/
-    __init__.py               # placeholder
+    README.md
+    __init__.py               # the page
+    segment.py                # RGB + thermal methods, IoU/Dice
+    find_person.py, compare.py, sam2_reference.py
+    theory.md
+    data/, figures/
 files/                        # my working files for the PDFs and videos, not tracked
 ```
 
