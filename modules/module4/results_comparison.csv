@@ -1,0 +1,3 @@
+kind,image,method,iou,dice
+rgb,FudanPed00013.png,GrabCut,0.9434,0.9709
+thermal,FLIR_07583.png,Thermal threshold,0.7902,0.8828
