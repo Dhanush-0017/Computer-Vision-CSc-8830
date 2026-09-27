@@ -1,0 +1,13 @@
+{
+  "frame": 800,
+  "points": 38,
+  "reliable": 38,
+  "moving_reliable": 30,
+  "median_err_vs_actual": 0.08679866627588895,
+  "mean_err_vs_actual": 0.14479949508174714,
+  "p90_err_vs_actual": 0.3774549025864894,
+  "median_err_vs_opencv": 0.009118742131631254,
+  "median_moved_px": 1.3300106525421143,
+  "max_moved_px": 2.770479917526245,
+  "static_max_pred_shift": 0.03919350372862883
+}

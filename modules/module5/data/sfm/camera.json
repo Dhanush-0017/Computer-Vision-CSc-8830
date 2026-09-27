@@ -1,0 +1,52 @@
+{
+  "note": "Module 2 calibration (18 chessboard photos, 0.392 px RMS) of the iPhone camera, rescaled for images downsized by 0.5: fx,fy x0.5, c = (c+0.5)*0.5-0.5. Distortion coefficients are unchanged (they act on normalised coordinates).",
+  "image_size_wh": [
+    1512,
+    2016
+  ],
+  "K": [
+    [
+      1511.7943,
+      0.0,
+      766.02
+    ],
+    [
+      0.0,
+      1514.17,
+      999.6512
+    ],
+    [
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "dist": [
+    0.1857172522835921,
+    -0.9811437976729224,
+    -0.0011635947877717625,
+    0.0014748792405537363,
+    1.4077272735769801
+  ],
+  "K_full_resolution": [
+    [
+      3023.5886,
+      0.0,
+      1532.5401
+    ],
+    [
+      0.0,
+      3028.34,
+      1999.8023
+    ],
+    [
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "full_resolution_wh": [
+    3024,
+    4032
+  ]
+}
