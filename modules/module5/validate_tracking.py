@@ -9,13 +9,13 @@ For each clip it takes two CONSECUTIVE frames (by default a frame with a
 typical amount of motion, see typical_frame) and:
 
   1. picks corner points (Shi-Tomasi) on the moving people, plus a few on the
-     static background as a control;
+     background as a control;
   2. predicts where each point goes with MY Lucas-Kanade (flow.lk_track):
      the equations derived in theory.md, with bilinear interpolation for every
      sub-pixel sample;
   3. measures where each point ACTUALLY went, without using any flow
      equation: normalised cross-correlation of the patch around it, searched
-     over +/-24 px in the second frame, peak refined to sub-pixel;
+     over +/-40 px in the second frame, peak refined to sub-pixel;
   4. also runs OpenCV's pyramidal LK (cv2.calcOpticalFlowPyrLK) as a second
      reference;
   5. writes one point's full calculation (window, gradients, G, b, every
@@ -46,28 +46,31 @@ RESULTS = os.path.join(HERE, 'results')
 
 def typical_frame(name):
     """A frame with a typical amount of motion -- not the fastest, not the
-    slowest: among frames with at least the median number of moving regions
-    (and no lighting flicker), the one whose speed is closest to the median.
+    slowest: among frames with at least the median number of moving regions,
+    the one whose object speed is closest to the median.
     Uses results/stats_<clip>.csv from make_flow_videos.py."""
     d = pd.read_csv(os.path.join(RESULTS, 'stats_%s.csv' % name))
-    d = d[(d.background_median < 0.05) & (d.moving_blobs >= d.moving_blobs.median())]
+    d = d[(d.moving_blobs > 0) & (d.moving_blobs >= d.moving_blobs.median())]
     med = d.moving_mean_speed.median()
     return int(d.loc[(d.moving_mean_speed - med).abs().idxmin(), 'frame'])
 
 
-def pick_points(f1, fl, thr, n_moving=30, n_static=8, border=40):
-    """Integer corner locations: some on moving things, some on background."""
+def pick_points(f1, obj, thr, n_moving=30, n_static=8, border=40):
+    """Integer corner locations: some on moving things (cars), some on the
+    background as a control. obj = flow with the camera motion removed."""
     g = F.gray(f1)
-    mag = np.hypot(fl[..., 0], fl[..., 1])
+    mag = np.hypot(obj[..., 0], obj[..., 1])
     H, W = g.shape
     inner = np.zeros_like(g)
     inner[border:H - border, border:W - border] = 255
     mov = ((mag > thr) * 255).astype(np.uint8)
     mov = cv2.erode(mov, np.ones((7, 7), np.uint8)) & inner
-    still = ((mag < 0.1) * 255).astype(np.uint8)
+    still = ((mag < 0.3) * 255).astype(np.uint8)
     still = cv2.erode(still, np.ones((15, 15), np.uint8)) & inner
     out = []
-    for mask, n, kind in ((mov, n_moving, 'moving'), (still, n_static, 'static')):
+    for mask, n, kind in ((mov, n_moving, 'moving'), (still, n_static, 'background')):
+        if n == 0:
+            continue
         p = cv2.goodFeaturesToTrack(g, n, 0.01, 12, mask=mask, blockSize=7)
         if p is not None:
             for (x, y) in p.reshape(-1, 2):
@@ -80,10 +83,12 @@ def fmt_mat(M, nd=1):
     return r'\begin{bmatrix}' + r' \\ '.join(rows) + r'\end{bmatrix}'
 
 
-def workings_md(name, w, actual, i):
+def workings_md(name, w, actual, i, kind='moving'):
     L = []
     L.append('### Worked example — %s, frames %d → %d, point (x, y) = (%d, %d)\n'
              % (name, i, i + 1, w['x'], w['y']))
+    L.append('The point is on %s.\n' % ('a moving car' if kind == 'moving' else
+             'the static background, and moves only because the camera turns'))
     L.append('Window %d×%d centred on the point, full resolution, no pyramid. '
              'Rows are y (top to bottom), columns are x (left to right).\n'
              % (w['win'], w['win']))
@@ -127,25 +132,64 @@ def workings_md(name, w, actual, i):
     return '\n'.join(L)
 
 
+def worked_example(name, clip, frames):
+    """(workings, actual position, frame, kind) for one well-textured point
+    that moves 1-4 px between two consecutive frames, or None.
+
+    First choice: a point on a moving object, in the frames where objects
+    move slowest. Otherwise: a background point in frames where the camera
+    turns by 1-4 px (the point then moves only because the camera does)."""
+    d = pd.read_csv(os.path.join(RESULTS, 'stats_%s.csv' % name))
+    tries = []
+    m = d[d.moving_blobs > 0]
+    m = m.iloc[np.argsort(np.abs(m.moving_mean_speed.values - 2.5))]
+    tries += [(fr, 'moving') for fr in m.frame.values[:25]]
+    c = d[(d.camera_speed > 1.2) & (d.camera_speed < 3.5)]
+    tries += [(fr, 'background') for fr in c.frame.values[::10][:25]]
+    for fr, want in tries:
+        f1, f2 = frames[fr], frames[fr + 1]
+        fl = F.dense_flow(f1, f2)
+        Hc, _ = F.camera_motion(f1, f2)
+        obj = fl - F.camera_flow(Hc, fl.shape)
+        for x, y, kind in pick_points(f1, obj, clip['moving_thr'],
+                                      n_static=0 if want == 'moving' else 30):
+            if kind != want:
+                continue
+            act, sc = F.ncc_locate(f1, f2, (x, y))
+            if act is None or sc < 0.95:
+                continue
+            moved = np.hypot(act[0] - x, act[1] - y)
+            if not 1.0 <= moved <= 4.0:
+                continue
+            w = F.lk_workings(f1, f2, (x, y), win=7)
+            if w['eig'][0] < 5000:        # want a well-textured window
+                continue
+            if np.hypot(x + w['d'][0] - act[0], y + w['d'][1] - act[1]) < 0.3:
+                return w, act, int(fr), kind
+    return None
+
+
 def run(name, clip, frame=None):
     frames, fps = F.read_frames(os.path.join(DATA, 'videos', clip['file']))
     if frame is None:
         frame = typical_frame(name)
     f1, f2 = frames[frame], frames[frame + 1]
     fl = F.dense_flow(f1, f2)
-    pts = pick_points(f1, fl, clip['moving_thr'])
+    Hc, _ = F.camera_motion(f1, f2)
+    obj = fl - F.camera_flow(Hc, fl.shape)
+    pts = pick_points(f1, obj, clip['moving_thr'])
     P = np.array([[x, y] for x, y, _ in pts], np.float64)
 
-    mine, info = F.lk_track(f1, f2, P, win=21, levels=3)
+    mine, info = F.lk_track(f1, f2, P, win=21, levels=4)
     cvp, stt, _ = cv2.calcOpticalFlowPyrLK(
         F.gray(f1), F.gray(f2), P.astype(np.float32).reshape(-1, 1, 2), None,
-        winSize=(21, 21), maxLevel=2,
+        winSize=(21, 21), maxLevel=3,
         criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 30, 0.01))
     cvp = cvp.reshape(-1, 2)
 
     rows = []
     for k, (x, y, kind) in enumerate(pts):
-        act, score = F.ncc_locate(f1, f2, (x, y), patch=21, search=24)
+        act, score = F.ncc_locate(f1, f2, (x, y), patch=21, search=40)
         if act is None:
             continue
         rows.append({
@@ -165,22 +209,20 @@ def run(name, clip, frame=None):
     df.to_csv(os.path.join(RESULTS, 'tracking_%s.csv' % name), index=False,
               float_format='%.3f')
 
-    # worked example: a moving point with a small (1-3 px) shift, so one level
-    # at full resolution is enough and every number fits on the page
-    wk = None
-    cand = df[(df.kind == 'moving') & df.reliable].copy()
-    cand = cand.iloc[np.argsort(np.abs(cand.moved_px.values - 2.0))]
-    for _, r in cand.iterrows():
-        w = F.lk_workings(f1, f2, (r.x, r.y), win=7)
-        a = (r.actual_x, r.actual_y)
-        if np.hypot(r.x + w['d'][0] - a[0], r.y + w['d'][1] - a[1]) < 0.5:
-            wk = (w, a)
-            break
+    # worked example: one point on a moving object that shifts 1-4 px, so a
+    # single level at full resolution is enough and every number fits on the
+    # page. Cars in the chosen pair may move more than that, so this looks
+    # for the frame pair where objects move slowest (see worked_example).
+    wk = worked_example(name, clip, frames)
+    wpath = os.path.join(RESULTS, 'workings_%s.md' % name)
     if wk:
-        with open(os.path.join(RESULTS, 'workings_%s.md' % name), 'w') as f:
-            f.write(workings_md(name, wk[0], wk[1], frame))
+        w, a, wf, kind = wk
+        with open(wpath, 'w') as f:
+            f.write(workings_md(name, w, a, wf, kind))
+    elif os.path.exists(wpath):
+        os.remove(wpath)
 
-    plot(name, clip, f1, f2, df, frame, wk)
+    plot(name, clip, f1, f2, df, frame, None)
     rel = df[df.reliable]
     s = {
         'frame': frame, 'points': len(df), 'reliable': int(len(rel)),
@@ -191,9 +233,11 @@ def run(name, clip, frame=None):
         'median_err_vs_opencv': float(rel.err_vs_opencv_px.median()),
         'median_moved_px': float(rel[rel.kind == 'moving'].moved_px.median()),
         'max_moved_px': float(rel.moved_px.max()),
-        'static_max_pred_shift': float(np.hypot(
-            df[df.kind == 'static'].pred_x - df[df.kind == 'static'].x,
-            df[df.kind == 'static'].pred_y - df[df.kind == 'static'].y).max()),
+        'within_half_px': int((rel.err_vs_actual_px < 0.5).sum()),
+        'over_3px': int((rel.err_vs_actual_px > 3).sum()),
+        'median_err_moving': float(rel[rel.kind == 'moving'].err_vs_actual_px.median()),
+        'median_err_background': float(rel[rel.kind == 'background'].err_vs_actual_px.median()),
+        'median_moved_background': float(rel[rel.kind == 'background'].moved_px.median()),
     }
     with open(os.path.join(RESULTS, 'tracking_summary_%s.json' % name), 'w') as f:
         json.dump(s, f, indent=2)

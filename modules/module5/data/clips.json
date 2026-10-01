@@ -1,22 +1,23 @@
 {
-  "pedestrians": {
-    "file": "pedestrians.mp4",
-    "title": "Video 1 - pedestrians on a campus path",
-    "about": "Fixed camera looking down on a path. Many people walking in different directions at different distances from the camera.",
-    "source": "OpenCV sample data, samples/data/vtest.avi (first 30 s, re-encoded to H.264)",
-    "url": "https://github.com/opencv/opencv/blob/4.x/samples/data/vtest.avi",
-    "license": "Distributed with OpenCV (Apache 2.0 repository)",
-    "moving_thr": 1.0,
-    "max_mag": 8.0
+  "intersection": {
+    "file": "intersection.mp4",
+    "title": "Video 1 - cars at an intersection (camera held still)",
+    "about": "Filmed by me on an iPhone, hand-held and kept as still as I could, looking across a road intersection. Cars cross in both directions at different distances.",
+    "source": "My own recording, IMG_1893.MOV (0 s to 30 s of 52.7 s), 1920x1080 30 fps HEVC HDR, tone-mapped to SDR, scaled to 960x540 and re-encoded to H.264",
+    "url": "",
+    "license": "own recording",
+    "moving_thr": 1.5,
+    "max_mag": 15.0
   },
-  "store_aisle": {
-    "file": "store_aisle.mp4",
-    "title": "Video 2 - shoppers in a store aisle",
-    "about": "Fixed camera looking down an aisle. People walk away from and towards the camera, so they shrink and grow in the image.",
-    "source": "Intel IoT DevKit sample-videos, store-aisle-detection.mp4 (5 s to 35 s, resampled 60 -> 30 fps, re-encoded to H.264)",
-    "url": "https://github.com/intel-iot-devkit/sample-videos",
-    "license": "CC BY 4.0",
-    "moving_thr": 0.8,
-    "max_mag": 4.0
+  "pan": {
+    "file": "pan.mp4",
+    "title": "Video 2 - panning across the road",
+    "about": "Filmed by me on an iPhone, hand-held. The first seconds are held still while cars pass; then I turn slowly left and right across the scene, so the whole picture moves.",
+    "source": "My own recording, IMG_1895.MOV (5 s to 35 s of 60.8 s), 1920x1080 30 fps HEVC HDR, tone-mapped to SDR, scaled to 960x540 and re-encoded to H.264",
+    "url": "",
+    "license": "own recording",
+    "moving_thr": 1.5,
+    "max_mag": 10.0,
+    "sample_while_panning": true
   }
 }

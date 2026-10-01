@@ -22,3 +22,9 @@ modules/module4/out/
 files/SUBMISSION_M5.md
 files/SCRIPT_M5.md
 files/Module5_6_Submission.pdf
+files/STUDY_NOTES.md
+
+.venv_vllm/
+
+# my original phone videos for Module 5 (large; the 30 s clips used are data/videos/*.mp4)
+modules/module5/data/videos/*.MOV
