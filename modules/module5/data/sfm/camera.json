@@ -1,5 +1,5 @@
 {
-  "note": "Module 2 calibration (18 chessboard photos, 0.392 px RMS) of the iPhone camera, rescaled for images downsized by 0.5: fx,fy x0.5, c = (c+0.5)*0.5-0.5. Distortion coefficients are unchanged (they act on normalised coordinates).",
+  "note": "Module 2 calibration (18 chessboard photos, 0.392 px RMS) of the iPhone 13 main camera. sfm.py uses K_full_resolution, for the 3024x4032 photos in this folder. K is the same calibration scaled for half-size (1512x2016) images, kept for reference.",
   "image_size_wh": [
     1512,
     2016

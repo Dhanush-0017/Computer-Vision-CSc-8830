@@ -1,41 +1,41 @@
 {
-  "square_mm_assumed": 30.0,
-  "normal_spread_deg_sum": 7.548262127470354,
-  "decomposition_vs_opencv_maxdiff": 2.0539125955565396e-15,
-  "reproj_rms_px_linear": 7.692307143483471,
-  "reproj_rms_px_refined": 0.1197019606574984,
-  "reproj_max_px_refined": 0.34169485401632915,
-  "boundary_reproj_rms_px": 1.9910280283992925,
-  "boundary_reproj_max_px": 4.0874766974426455,
+  "width_mm_measured": 170.0,
+  "height_mm_measured": 230.0,
+  "n_feature_points": 92,
+  "normal_spread_deg_sum": 10.703834135638061,
+  "decomposition_vs_opencv_maxdiff": 2.1094237467877974e-15,
+  "reproj_rms_px_linear": 2.4992450347007145,
+  "reproj_rms_px_refined": 0.8108965912149738,
+  "reproj_max_px_refined": 4.140497930759424,
+  "boundary_reproj_rms_px": 4.188638968995405,
+  "boundary_reproj_max_px": 12.530882328620173,
   "boundary_out_of_plane_mm": [
-    0.5331564154031433,
-    2.2974470766921486,
-    1.4383097236676796,
-    1.1734199994706467
+    1.489993135703496,
+    -3.44261302335527,
+    1.4101343164139681,
+    -0.7709410958689416
   ],
-  "planarity_rms_mm": 0.10310126064542584,
-  "square_side_along_rows_mm": [
-    30.00373470559552,
-    0.1119837796519957
+  "planarity_rms_mm": 0.35473636982262463,
+  "features_inside_boundary": 1.0,
+  "width_top_mm": 169.92842433353994,
+  "width_bottom_mm": 169.86622678363852,
+  "height_left_mm": 231.34176759227242,
+  "height_right_mm": 232.86526467974917,
+  "height_error_mm": 2.1035161360107963,
+  "diagonal_mm": 286.67488052565204,
+  "diagonal_mm_measured": 280.0,
+  "corner_angles_deg": [
+    90.65293279430541,
+    89.33435501218983,
+    90.1519973146319,
+    89.86071487887286
   ],
-  "square_side_down_cols_mm": [
-    29.959623477199365,
-    0.06116330487480896
-  ],
-  "grid_vs_true_rms_mm": 0.3119908968789289,
-  "grid_vs_true_max_mm": 0.5557323997688884,
-  "screen_width_top_mm": 643.9545565505689,
-  "screen_width_bottom_mm": 642.4259245852197,
-  "screen_height_left_mm": 371.5003274365439,
-  "screen_height_right_mm": 368.5996430904903,
-  "screen_corner_angles_deg": [
-    89.78458218887602,
-    89.9784831649978,
-    90.27998800612396,
-    89.95694664000223
-  ],
-  "screen_aspect": 1.738117190059799,
-  "screen_diagonal_in": 29.214367296747184,
-  "camera_vs_pnp_mm_mean": 9.062248019349989,
-  "camera_vs_pnp_mm_max": 23.431377523161935
+  "aspect": 0.7319894518919341,
+  "aspect_measured": 0.7391304347826086,
+  "viewing_angles_deg": [
+    12.861261527332282,
+    9.463375023736498,
+    43.189592646117795,
+    46.417441314420735
+  ]
 }

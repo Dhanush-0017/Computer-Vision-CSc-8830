@@ -6,7 +6,7 @@ The page in the web app. app.py imports this; it doesn't run on its own.
 Where each part of the assignment lives:
   A. optical flow as a video, what can be inferred, evidence   -> tab 1
      tracking equations validated on two consecutive frames     -> tab 2
-     derivations (tracking equations, bilinear interpolation)   -> tab 4
+     derivations (tracking equations, bilinear interpolation)   -> theory.md / the PDF
   B. structure from motion, 4 views of a flat object, boundary,
      camera positions and parameters, worked maths              -> tab 3
 
@@ -29,7 +29,7 @@ NUMBER = 5
 TITLE = 'Optical Flow & Structure from Motion'
 SUBTITLE = ('Modules 5 & 6: dense optical flow on two videos, Lucas-Kanade '
             'tracking derived and checked against real pixel positions, and '
-            'structure from motion of a flat object from four views.')
+            'structure from motion of a notebook from four photos.')
 STATUS = 'complete'
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -68,9 +68,26 @@ def _text(path):
         return f.read()
 
 
-@st.cache_resource(show_spinner='Loading video...')
-def _frames(name):
-    return F.read_frames(os.path.join(DATA, 'videos', _clips()[name]['file']))
+@st.cache_data(show_spinner=False)
+def _video_info(name):
+    """(number of frames, fps) without loading the video."""
+    cap = cv2.VideoCapture(os.path.join(DATA, 'videos', _clips()[name]['file']))
+    n = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+    cap.release()
+    return n, fps
+
+
+@st.cache_data(show_spinner='Reading frames...', max_entries=8)
+def _pair(name, i):
+    """Frames i and i+1 only. Loading the whole 900-frame clip would need
+    ~1.4 GB, more than the hosted app has."""
+    cap = cv2.VideoCapture(os.path.join(DATA, 'videos', _clips()[name]['file']))
+    cap.set(cv2.CAP_PROP_POS_FRAMES, i)
+    ok1, f1 = cap.read()
+    ok2, f2 = cap.read()
+    cap.release()
+    return (f1, f2) if ok1 and ok2 else None
 
 
 def _compass(deg):
@@ -126,17 +143,17 @@ def _tab_flow():
         st.warning('Run `python make_flow_videos.py` to make the flow video.')
 
     with st.expander('Look at any single frame pair (computed live)'):
-        frames, fps = _frames(name)
-        i = st.slider('frame', 0, len(frames) - 2, len(frames) // 2,
-                      key='m5_frame_' + name)
-        fl = F.dense_flow(frames[i], frames[i + 1])
-        Hc, _ = F.camera_motion(frames[i], frames[i + 1])
+        n, fps = _video_info(name)
+        i = st.slider('frame', 0, n - 2, n // 2, key='m5_frame_' + name)
+        f1, f2 = _pair(name, i)
+        fl = F.dense_flow(f1, f2)
+        Hc, _ = F.camera_motion(f1, f2)
         cam = F.camera_flow(Hc, fl.shape)
         s, moving = F.frame_stats(fl, clip['moving_thr'], cam,
-                                  F.textured(frames[i]))
+                                  F.textured(f1))
         obj = (fl - cam) * moving[..., None]
         c1, c2 = st.columns(2)
-        c1.image(_rgb(F.draw_arrows(frames[i], obj, 20, 1.0, 2, (0, 255, 255))),
+        c1.image(_rgb(F.draw_arrows(f1, obj, 20, 1.0, 2, (0, 255, 255))),
                  caption='frame %d, t = %.2f s: object motion (camera motion '
                  'removed)' % (i, i / fps), width='stretch')
         c2.image(_rgb(F.flow_to_color(fl, clip['max_mag'])),
@@ -221,8 +238,7 @@ def _tab_flow():
 # ----------------------------------------------------------------------------
 @st.cache_data(show_spinner='Tracking with my Lucas-Kanade...')
 def _track_live(name, i):
-    frames, _ = _frames(name)
-    f1, f2 = frames[i], frames[i + 1]
+    f1, f2 = _pair(name, i)
     fl = F.dense_flow(f1, f2)
     Hc, _ = F.camera_motion(f1, f2)
     obj = fl - F.camera_flow(Hc, fl.shape)
@@ -253,7 +269,7 @@ def _tab_tracking():
     st.subheader('A. Tracking between two consecutive frames — theory vs actual')
     st.markdown(
         '**Predicted:** my Lucas–Kanade (`flow.lk_track`) solves '
-        '$G\\,\\mathbf d = \\mathbf b$ from the derivation (tab 4), iterating '
+        '$G\\,\\mathbf d = \\mathbf b$ from the derivation (in the report), iterating '
         'with bilinear interpolation, on a 4-level pyramid (cars move up to '
         '~25 px per frame).  \n'
         '**Actual:** where the pixel really went, measured *without* any flow '
@@ -296,8 +312,8 @@ def _tab_tracking():
             st.markdown(_text(wk))
 
     with st.expander('Try another frame pair (computed live)'):
-        frames, _ = _frames(name)
-        i = st.slider('first frame', 0, len(frames) - 2, s['frame'],
+        n, _ = _video_info(name)
+        i = st.slider('first frame', 0, n - 2, s['frame'],
                       key='m5_trk_f_' + name)
         r = _track_live(name, i)
         if r is None or r.empty:
@@ -315,75 +331,80 @@ def _tab_tracking():
 def _tab_sfm():
     st.subheader('B. Structure from motion — four views of a flat object')
     st.markdown(
-        'The object is my **monitor screen**, which is flat, showing the '
-        'chessboard page from Module 2. It was photographed from four positions with '
-        'the calibrated iPhone. The 54 chessboard corners give the '
-        'correspondences between views. The **4 corners of the lit screen are '
-        'the boundary** to estimate. Only the image points and $K$ are used to '
-        'reconstruct; the board\'s real size is used for one length (the scale) '
-        'and afterwards to check the result.')
+        'The object is my **spiral notebook** (the "NEVER STOP" cover), lying '
+        'flat on a library table. I photographed it from four positions with the '
+        'same iPhone I calibrated in Module 2. **SIFT feature points on the '
+        'cover\'s artwork**, matched across all four photos, give the '
+        'correspondences between views. The **4 corners of the purple panel of '
+        'the cover are the boundary** to estimate. Only the image points and $K$ '
+        'are used to reconstruct. The panel\'s width, measured with the iPhone '
+        'Measure app, sets the scale; its height and diagonal are only used '
+        'afterwards to check the result.')
     s = _json('sfm_summary.json')
     cams = _csv('sfm_cameras.csv')
     if s is None:
-        st.warning('Run `python sfm.py` first.')
+        st.warning('Run `python sfm.py --width-mm 170 --height-mm 230` first.')
         return
     st.image(os.path.join(RES, 'sfm_views.png'), width='stretch')
 
     st.markdown('#### Camera parameters')
     cj = json.load(open(os.path.join(DATA, 'sfm', 'camera.json')))
-    K = np.array(cj['K'])
+    K = np.array(cj['K_full_resolution'])
     c1, c2 = st.columns([1, 1])
-    c1.markdown('Intrinsics $K$ (Module 2 calibration, 1512×2016 images):')
+    c1.markdown('Intrinsics $K$ (Module 2 calibration of the same iPhone 13, '
+                'main camera, 3024×4032 photos):')
     c1.latex(r'K=\begin{bmatrix}%.1f&0&%.1f\\0&%.1f&%.1f\\0&0&1\end{bmatrix}'
              % (K[0, 0], K[0, 2], K[1, 1], K[1, 2]))
     c2.markdown('Distortion $(k_1, k_2, p_1, p_2, k_3)$:')
     c2.code(', '.join('%.4f' % v for v in cj['dist']))
-    c2.caption(cj['note'])
+    c2.caption('From the Module 2 calibration: 18 chessboard photos, 0.392 px '
+               'RMS reprojection error.')
 
     st.markdown('#### Camera positions (recovered by SfM)')
     show = cams.copy()
     show['C (mm)'] = show.apply(lambda r: '(%.0f, %.0f, %.0f)'
                                 % (r.Cx_mm, r.Cy_mm, r.Cz_mm), axis=1)
-    show['solvePnP check (mm)'] = show.apply(
-        lambda r: '(%.0f, %.0f, %.0f)' % (r.pnp_Cx_mm, r.pnp_Cy_mm, r.pnp_Cz_mm), axis=1)
+    show['viewing angle (°)'] = s['viewing_angles_deg']
     st.dataframe(show[['view', 'image', 'C (mm)', 'dist_to_object_mm',
-                       'rot_vs_cam1_deg', 'solvePnP check (mm)', 'diff_vs_pnp_mm']]
-                 .rename(columns={'dist_to_object_mm': 'distance to object (mm)',
-                                  'rot_vs_cam1_deg': 'rotation vs view 1 (°)',
-                                  'diff_vs_pnp_mm': 'difference (mm)'}).round(1),
+                       'viewing angle (°)', 'rot_vs_cam1_deg']]
+                 .rename(columns={'dist_to_object_mm': 'distance to the notebook (mm)',
+                                  'rot_vs_cam1_deg': 'rotation vs view 1 (°)'}).round(1),
                  hide_index=True, width='stretch')
-    st.caption('Object frame: origin at chessboard corner 0, x along the top '
-               'row, y down the rows, z into the screen, so cameras have z < 0. '
-               'The check column is where `cv2.solvePnP` puts each camera using '
-               'the board\'s true geometry. SfM never uses that.')
+    st.caption('Object frame: origin at the top-left corner of the purple panel, '
+               'x along its top edge, y down its left edge, z into the table, so '
+               'cameras have z < 0. Viewing angle: 0° = looking straight down at '
+               'the notebook.')
 
     c1, c2 = st.columns(2)
     c1.image(os.path.join(RES, 'sfm_3d.png'), width='stretch')
     c2.image(os.path.join(RES, 'sfm_boundary.png'), width='stretch')
 
     st.markdown('#### How good is it')
+    h = (s['height_left_mm'] + s['height_right_mm']) / 2
     a, b, c, d = st.columns(4)
-    a.metric('reprojection (grid)', '%.2f px' % s['reproj_rms_px_refined'])
-    b.metric('reprojection (boundary)', '%.2f px' % s['boundary_reproj_rms_px'])
-    c.metric('flatness (RMS off plane)', '%.2f mm' % s['planarity_rms_mm'])
-    d.metric('cameras vs solvePnP', '%.1f mm mean' % s['camera_vs_pnp_mm_mean'])
+    a.metric('feature points in all 4 views', s['n_feature_points'])
+    b.metric('reprojection (features)', '%.2f px' % s['reproj_rms_px_refined'])
+    c.metric('reprojection (corners)', '%.2f px' % s['boundary_reproj_rms_px'])
+    d.metric('flatness (RMS off plane)', '%.2f mm' % s['planarity_rms_mm'])
     a, b, c, d = st.columns(4)
-    a.metric('square side, along rows', '%.2f mm' % s['square_side_along_rows_mm'][0])
-    b.metric('square side, down columns', '%.2f mm' % s['square_side_down_cols_mm'][0])
-    c.metric('grid vs true board', '%.2f mm RMS' % s['grid_vs_true_rms_mm'])
-    d.metric('boundary corner angles', ', '.join(
-        '%.1f°' % v for v in s['screen_corner_angles_deg']))
+    a.metric('height (measured %.0f)' % s['height_mm_measured'], '%.0f mm' % h)
+    b.metric('diagonal (measured %.0f)' % s['diagonal_mm_measured'],
+             '%.0f mm' % s['diagonal_mm'])
+    c.metric('width ÷ height (measured %.3f)' % s['aspect_measured'],
+             '%.3f' % s['aspect'])
+    d.metric('corner angles', ', '.join('%.1f°' % v for v in s['corner_angles_deg']))
     st.markdown(
-        'Estimated boundary: **%.0f × %.0f mm** (width × height, mean of the '
-        'opposite sides), aspect ratio **%.3f**. The four corners are %.1f mm '
-        'or less off the plane of the grid points. The scale comes from one '
-        'assumed length: a chessboard square is %.0f mm on the screen, the value '
-        'used in the Module 2 calibration. Every length scales with that one '
-        'number; the angles, flatness and aspect ratio do not depend on it.'
-        % ((s['screen_width_top_mm'] + s['screen_width_bottom_mm']) / 2,
-           (s['screen_height_left_mm'] + s['screen_height_right_mm']) / 2,
-           s['screen_aspect'], max(abs(v) for v in s['boundary_out_of_plane_mm']),
-           s['square_mm_assumed']))
+        'Estimated boundary: **%.0f × %.0f mm**, corners within %.1f° of 90°, '
+        'all four corners within %.1f mm of the plane of the feature points. Only '
+        'the width (%.0f mm) was given; the height comes out %.0f mm against '
+        '%.0f mm measured. (The measured diagonal, %.0f mm, is a little short: '
+        'the measured width and height alone give %.0f mm.)'
+        % ((s['width_top_mm'] + s['width_bottom_mm']) / 2, h,
+           max(abs(v - 90) for v in s['corner_angles_deg']),
+           max(abs(v) for v in s['boundary_out_of_plane_mm']),
+           s['width_mm_measured'], h, s['height_mm_measured'],
+           s['diagonal_mm_measured'],
+           np.hypot(s['width_mm_measured'], s['height_mm_measured'])))
 
     with st.expander('The mathematical workings, with this run\'s numbers'):
         wk = os.path.join(RES, 'workings_sfm.md')
@@ -396,13 +417,11 @@ def _tab_sfm():
 def render():
     st.title('Modules 5 & 6 — ' + TITLE)
     st.caption(SUBTITLE)
-    t1, t2, t3, t4 = st.tabs(['1 · Optical flow', '2 · Tracking check',
-                              '3 · Structure from motion', '4 · Theory'])
+    t1, t2, t3 = st.tabs(['1 · Optical flow', '2 · Tracking check',
+                          '3 · Structure from motion'])
     with t1:
         _tab_flow()
     with t2:
         _tab_tracking()
     with t3:
         _tab_sfm()
-    with t4:
-        st.markdown(_text(os.path.join(HERE, 'theory.md')))

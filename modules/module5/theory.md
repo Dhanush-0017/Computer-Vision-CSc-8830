@@ -269,6 +269,23 @@ Take camera 1 as the world frame, $P_1 = [I \mid \mathbf 0]$. The unknowns are
 $P_i = [R_i \mid \mathbf t_i]$ for $i = 2, 3, 4$ and the 3D points: that is
 *structure* (the points) *from motion* (the camera poses).
 
+### B1b. Finding the same points in all four photos
+
+Points on the cover are found with SIFT [12]: corners and blobs at many scales,
+each described by a 128-number histogram of gradient directions that hardly
+changes when the view rotates, scales or tilts moderately. A point in view 1 is
+matched to the most similar descriptor in view $i$ if it is clearly better than
+the second best (Lowe's ratio test, distance ratio < 0.8). Because the cover is
+flat, every correct match must obey one homography (B2), so a homography is
+fitted with RANSAC [10] and matches that disagree by more than 4 px are dropped.
+Only points matched in all four views are kept.
+
+The boundary corners come from the purple panel: its outline is found by colour,
+each side gets a straight line fitted (after undistortion), and the corners are
+where adjacent lines meet. That handles the rounded printed corners and the
+corner hidden under the black label. The same corner gets the same name in
+every view by mapping view 1's corners with the feature homography.
+
 ### B2. Why a plane gives a homography
 
 Let the object's points lie on a plane $\mathbf n^T\mathbf X = d$ in camera-1
@@ -303,7 +320,7 @@ $$
 \end{bmatrix}\mathbf h = \mathbf 0
 $$
 
-With 54 points, $A$ is 108×9. $\mathbf h$ is the right singular vector of $A$ for
+With $N$ points, $A$ is $2N$×9 (here $N = 92$ feature points on the notebook cover). $\mathbf h$ is the right singular vector of $A$ for
 its smallest singular value, which minimises $\|A\mathbf h\|$ subject to
 $\|\mathbf h\| = 1$. Before building $A$, each point set is shifted to zero mean and
 scaled to mean distance $\sqrt 2$ (Hartley normalisation [6]); $H$ is then
@@ -348,7 +365,7 @@ It gives **four** solutions: $\mathbf u_1$ or $\mathbf u_2$, and for each the pa
 2. *Four views:* there are three pairs (1→2, 1→3, 1→4), each with 2 survivors,
    but only one plane. Its normal $\mathbf n$ in camera 1 must be the same in all
    three, so the combination with the most consistent normals is chosen.
-   The wrong candidates disagree by tens of degrees. This is where having four
+   The wrong combinations agree clearly worse. This is where having four
    views helps. With two views the choice would be ambiguous.
 
 All three $\mathbf t_i$ come out divided by the same $d$, so the cameras share
@@ -389,19 +406,20 @@ where its 3D point projects.
 
 SfM cannot recover absolute size: scaling the scene and the camera translations
 by the same factor gives identical images. One known length fixes it. Here that
-is the distance between two grid corners 8 squares apart. The factor is
+is the width of the cover's purple panel (the distance between its two top
+corners), measured with the iPhone Measure app. The factor is
 $s = L_{\text{true}} / \lVert\mathbf X_a - \mathbf X_b\rVert$.
 
 To draw the object flat, fit the plane to the points (SVD of the centred points;
 the normal is the singular vector with the smallest singular value) and set up
-axes on it: $\mathbf e_1$ along the grid's top row, $\mathbf e_2 = \mathbf n\times\mathbf e_1$,
-$\mathbf e_3 = \mathbf e_1 \times \mathbf e_2$, origin at grid corner 0:
+axes on it: $\mathbf e_1$ along the panel's top edge, $\mathbf e_2 = \mathbf n\times\mathbf e_1$,
+$\mathbf e_3 = \mathbf e_1 \times \mathbf e_2$, origin at the panel's top-left corner:
 
 $$
 \mathbf X_{\text{obj}} = s\,[\mathbf e_1\ \mathbf e_2\ \mathbf e_3]^T(\mathbf X - \mathbf X_0)
 $$
 
-The **boundary** is the polygon through the four reconstructed screen corners.
+The **boundary** is the polygon through the four reconstructed panel corners.
 Its side lengths, corner angles and flatness are measured directly from the 3D points.
 Camera centres are $\mathbf C_i = -R_i^T\mathbf t_i$, put into the same frame.
 
@@ -431,4 +449,7 @@ Camera centres are $\mathbf C_i = -R_i^T\mathbf t_i$, put into the same frame.
 10. M. A. Fischler and R. C. Bolles, "Random sample consensus: a paradigm for
     model fitting with applications to image analysis and automated
     cartography," *Communications of the ACM*, vol. 24, no. 6, pp. 381–395, 1981.
-11. Videos 1 and 2: my own recordings on an iPhone (IMG_1893, IMG_1895).
+11. Videos 1 and 2 and the four notebook photos: my own, iPhone 13
+    (IMG_1893, IMG_1895; IMG_2005, IMG_2009, IMG_2012, IMG_2016).
+12. D. G. Lowe, "Distinctive image features from scale-invariant keypoints,"
+    *Int. J. Computer Vision*, vol. 60, no. 2, pp. 91–110, 2004.
