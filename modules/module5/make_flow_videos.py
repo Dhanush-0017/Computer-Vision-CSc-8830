@@ -3,20 +3,31 @@ make_flow_videos.py -- Part A: optical flow for each 30 s clip, as a video,
 plus the evidence for what the flow tells us.
 
 Usage (from this folder):
-    python make_flow_videos.py                 # both clips in data/clips.json
-    python make_flow_videos.py --clip pedestrians
+    python make_flow_videos.py                  # both clips in data/clips.json
+    python make_flow_videos.py --clip intersection
 
-For every pair of consecutive frames it computes dense (Farneback) flow and
-writes, into results/:
-    flow_<clip>.mp4       left: the video with flow arrows, right: flow colour
-                          (hue = direction, brightness = speed; legend in the
-                          corner). Same length and frame rate as the clip.
-    stats_<clip>.csv      one row per frame pair: moving fraction, speed of
-                          the moving pixels, background speed, mean direction,
-                          number of moving regions
+Both clips were filmed hand-held on my iPhone, so the camera moves too. For
+every pair of consecutive frames the script computes:
+    - the dense optical flow (Farneback), and
+    - the camera's own motion (flow.camera_motion: a homography fitted with
+      RANSAC to corners across the frame);
+the difference between the two is how things moved in the world.
+
+Writes, into results/:
+    flow_<clip>.mp4       left: the video, moving objects outlined in red,
+                          arrows = their motion with the camera motion removed;
+                          right: the raw optical flow in colour (hue =
+                          direction, brightness = speed, legend top right).
+                          Same length and frame rate as the clip.
+    stats_<clip>.csv      one row per frame pair: camera motion, fraction of
+                          moving pixels, their speed and direction, number of
+                          moving regions
     evidence_<clip>.png   the four plots used in the report to back up
                           "what can be inferred from optical flow"
     sample_<clip>.png     one frame, original | flow colour, for the PDF
+    vehicles_<clip>.csv   every moving region in every frame: where it
+                          touches the road (bottom y) and its speed
+    summary_<clip>.json   the headline numbers
 
 Needs ffmpeg on the PATH to make the mp4 playable in a browser (H.264).
 Without it the video is still written, as MPEG-4 part 2.
@@ -41,7 +52,6 @@ DATA = os.path.join(HERE, 'data')
 RESULTS = os.path.join(HERE, 'results')
 PANEL_W = 480
 N_ANG = 36          # direction histogram bins (10 degrees each)
-N_ROWS = 12         # image-row bands for the speed-vs-row plot
 
 
 def load_clips():
@@ -54,22 +64,34 @@ def _panel(img, w=PANEL_W):
     return cv2.resize(img, (w, h), interpolation=cv2.INTER_AREA)
 
 
-def _label(img, text):
-    cv2.putText(img, text, (8, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                (0, 0, 0), 3, cv2.LINE_AA)
-    cv2.putText(img, text, (8, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+def _label(img, text, y=18):
+    (w, h), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.4, 1)
+    cv2.rectangle(img, (4, y - h - 4), (12 + w, y + 5), (0, 0, 0), -1)
+    cv2.putText(img, text, (8, y), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
                 (255, 255, 255), 1, cv2.LINE_AA)
 
 
-def compose(frame, fl, max_mag, t):
-    """One output frame: arrows | colour-coded flow with legend."""
-    left = _panel(F.draw_arrows(frame, fl, step=16, min_mag=0.5, scale=3))
+def outline(frame, moving, color=(0, 0, 255)):
+    out = frame.copy()
+    cnts, _ = cv2.findContours(moving.astype(np.uint8), cv2.RETR_EXTERNAL,
+                               cv2.CHAIN_APPROX_SIMPLE)
+    cnts = [c for c in cnts if cv2.contourArea(c) > 400]
+    cv2.drawContours(out, cnts, -1, color, 2)
+    return out
+
+
+def compose(frame, fl, obj, moving, max_mag, t, st):
+    """One output frame: objects + their motion | colour-coded raw flow."""
+    left = outline(F.draw_arrows(frame, obj * moving[..., None], step=20,
+                                 min_mag=1.0, scale=2,
+                                 color=(0, 255, 255)), moving)
+    left = _panel(left)
     right = _panel(F.flow_to_color(fl, max_mag))
-    wheel = F.color_wheel(70)
-    right[30:100, -78:-8] = wheel
-    _label(left, 't = %.1f s   arrows = flow, drawn 3x longer' % t)
-    _label(right, 'hue = direction, brightness = speed (max %.0f px/frame)'
-           % max_mag)
+    right[30:100, -78:-8] = F.color_wheel(70)
+    _label(left, 't = %.1f s   red: moving objects   arrows: their motion (x2)' % t)
+    _label(left, 'camera motion: %.2f px/frame' % st['camera_speed'], 36)
+    _label(right, 'optical flow: hue = direction, brightness = speed '
+           '(max %.0f px/frame)' % max_mag)
     return np.hstack([left, right])
 
 
@@ -84,128 +106,173 @@ def to_h264(src, dst):
 
 
 def process(name, clip):
-    frames, fps = F.read_frames(os.path.join(DATA, 'videos', clip['file']))
+    cap = cv2.VideoCapture(os.path.join(DATA, 'videos', clip['file']))
+    fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
     thr, max_mag = clip['moving_thr'], clip['max_mag']
-    print('%s: %d frames at %.0f fps = %.1f s' % (name, len(frames), fps,
-                                                 len(frames) / fps))
     os.makedirs(RESULTS, exist_ok=True)
     tmp = os.path.join(RESULTS, '_tmp_%s.mp4' % name)
-    first = compose(frames[0], np.zeros(frames[0].shape[:2] + (2,), np.float32),
-                    max_mag, 0)
-    vw = cv2.VideoWriter(tmp, cv2.VideoWriter_fourcc(*'mp4v'), fps,
-                         (first.shape[1], first.shape[0]))
+    vw = None
 
-    H = frames[0].shape[0]
+    ok, prev = cap.read()
+    H = prev.shape[0]
     ang_hist = np.zeros(N_ANG)
-    row_sum = np.zeros(N_ROWS)
-    row_cnt = np.zeros(N_ROWS)
     rows = []
+    blobs = []
     best = (-1, None)
-    for i in range(len(frames) - 1):
-        fl = F.dense_flow(frames[i], frames[i + 1])
-        st, moving = F.frame_stats(fl, thr)
-        st['frame'] = i
-        st['t'] = i / fps
+    i = 0
+    while True:
+        ok, nxt = cap.read()
+        if not ok:
+            break
+        fl = F.dense_flow(prev, nxt)
+        Hc, inl = F.camera_motion(prev, nxt)
+        cam = F.camera_flow(Hc, fl.shape)
+        obj = fl - cam
+        st, moving = F.frame_stats(fl, thr, cam, F.textured(prev))
+        st.update(frame=i, t=i / fps, camera_inliers=inl)
         rows.append(st)
 
-        mag = np.hypot(fl[..., 0], fl[..., 1])
-        ang = np.degrees(np.arctan2(fl[..., 1], fl[..., 0])) % 360
+        mag = np.hypot(obj[..., 0], obj[..., 1])
+        ang = np.degrees(np.arctan2(obj[..., 1], obj[..., 0])) % 360
         ang_hist += np.bincount((ang[moving] // (360 / N_ANG)).astype(int),
                                 minlength=N_ANG)[:N_ANG]
-        band = (np.arange(H) * N_ROWS // H)
-        ys = np.nonzero(moving)[0]
-        np.add.at(row_sum, band[ys], mag[moving])
-        np.add.at(row_cnt, band[ys], 1)
+        # each moving vehicle: where it touches the road (bottom of its
+        # region -- lower in the image = nearer the camera) and its speed
+        k, lab, cs, _ = cv2.connectedComponentsWithStats(moving.astype(np.uint8))
+        for j in range(1, k):
+            if cs[j, cv2.CC_STAT_AREA] < 3000:
+                continue
+            bottom = cs[j, cv2.CC_STAT_TOP] + cs[j, cv2.CC_STAT_HEIGHT]
+            blobs.append((i, bottom, float(np.median(mag[lab == j]))))
 
-        # frame shown in the report: the most total motion, skipping frames
-        # where the whole background "moves" (lighting flicker)
+        # frame shown in the report: the most object motion (for the panning
+        # clip, only frames where the camera is actually turning)
         score = st['moving_fraction'] * st['moving_mean_speed']
-        if st['background_median'] < 0.05 and score > best[0]:
-            best = (score, (i, fl, moving))
-        vw.write(compose(frames[i], fl, max_mag, i / fps))
-    vw.release()
-    to_h264(tmp, os.path.join(RESULTS, 'flow_%s.mp4' % name))
+        if clip.get('sample_while_panning') and st['camera_speed'] < 2:
+            score = -1
+        if score > best[0]:
+            best = (score, (i, prev.copy(), fl, obj, moving))
 
-    df = pd.DataFrame(rows)[['frame', 't', 'moving_fraction', 'moving_mean_speed',
-                             'background_median', 'mean_u', 'mean_v',
-                             'moving_blobs']]
+        out = compose(prev, fl, obj, moving, max_mag, i / fps, st)
+        if vw is None:
+            vw = cv2.VideoWriter(tmp, cv2.VideoWriter_fourcc(*'mp4v'), fps,
+                                 (out.shape[1], out.shape[0]))
+        vw.write(out)
+        prev = nxt
+        i += 1
+    vw.release()
+    cap.release()
+    to_h264(tmp, os.path.join(RESULTS, 'flow_%s.mp4' % name))
+    n_frames = i + 1
+    print('%s: %d frames at %.0f fps = %.1f s' % (name, n_frames, fps, n_frames / fps))
+
+    df = pd.DataFrame(rows)[['frame', 't', 'camera_speed', 'camera_dx', 'camera_dy',
+                             'camera_inliers', 'residual_background',
+                             'moving_fraction', 'moving_mean_speed', 'mean_u',
+                             'mean_v', 'moving_blobs']]
     df.to_csv(os.path.join(RESULTS, 'stats_%s.csv' % name), index=False,
               float_format='%.4f')
 
-    i, fl, moving = best[1]
-    sample = np.hstack([_panel(frames[i]), _panel(F.flow_to_color(fl, max_mag))])
+    i, frame, fl, obj, moving = best[1]
+    sample = np.hstack([_panel(outline(frame, moving)),
+                        _panel(F.flow_to_color(fl, max_mag))])
     cv2.imwrite(os.path.join(RESULTS, 'sample_%s.png' % name), sample)
-    evidence_plot(name, clip, frames[i], fl, moving, i / fps, df, ang_hist,
-                  row_sum, row_cnt, fps)
+    bl = pd.DataFrame(blobs, columns=['frame', 'bottom_y', 'speed'])
+    bl.to_csv(os.path.join(RESULTS, 'vehicles_%s.csv' % name), index=False,
+              float_format='%.3f')
+    evidence_plot(name, clip, frame, obj, moving, i / fps, df, ang_hist,
+                  bl, fps, n_frames)
     summary = {
-        'frames': len(frames), 'fps': fps, 'sample_frame': int(i),
-        'background_median_px': float(df.background_median.median()),
+        'frames': n_frames, 'fps': fps, 'sample_frame': int(i),
+        'camera_speed_median': float(df.camera_speed.median()),
+        'camera_speed_p95': float(df.camera_speed.quantile(0.95)),
+        'camera_speed_max': float(df.camera_speed.max()),
+        'camera_inliers_mean': float(df.camera_inliers.mean()),
+        'residual_background_median': float(df.residual_background.median()),
         'moving_speed_px': float(df.moving_mean_speed[df.moving_blobs > 0].mean()),
+        'moving_speed_max': float(df.moving_mean_speed.max()),
         'max_blobs': int(df.moving_blobs.max()),
-        'row_speed': (row_sum / np.maximum(row_cnt, 1)).round(3).tolist(),
+        'frames_with_motion': float((df.moving_blobs > 0).mean()),
+        'depth_bins': [[round(y), round(v, 2), n] for y, v, n in depth_bins(bl)],
         'dominant_dirs_deg': (np.argsort(ang_hist)[::-1][:3] * 360 / N_ANG
                               + 5).tolist(),
+        'left_vs_right': [float(ang_hist[(np.arange(N_ANG) * 10 + 5 > 90) &
+                                         (np.arange(N_ANG) * 10 + 5 < 270)].sum()
+                                / max(ang_hist.sum(), 1))],
     }
     with open(os.path.join(RESULTS, 'summary_%s.json' % name), 'w') as f:
         json.dump(summary, f, indent=2)
     print('  ', json.dumps(summary))
 
 
-def evidence_plot(name, clip, frame, fl, moving, t, df, ang_hist, row_sum,
-                  row_cnt, fps):
+def depth_bins(bl, H=540, step=30):
+    """Median vehicle speed for each 30 px band of 'where it touches the
+    road' (only bands with enough samples)."""
+    out = []
+    for y0 in range(0, H, step):
+        s = bl[(bl.bottom_y >= y0) & (bl.bottom_y < y0 + step)]
+        if len(s) >= 15:
+            out.append((y0 + step / 2, float(s.speed.median()), len(s)))
+    return out
+
+
+def evidence_plot(name, clip, frame, obj, moving, t, df, ang_hist, bl, fps,
+                  n_frames):
     fig = plt.figure(figsize=(12, 8.2))
 
     ax = fig.add_subplot(2, 2, 1)
-    over = F.draw_arrows(frame, fl, step=12, min_mag=clip['moving_thr'],
-                         scale=3, color=(0, 255, 255))
-    cnts, _ = cv2.findContours(moving.astype(np.uint8), cv2.RETR_EXTERNAL,
-                               cv2.CHAIN_APPROX_SIMPLE)
-    cnts = [c for c in cnts if cv2.contourArea(c) > 60]
-    cv2.drawContours(over, cnts, -1, (0, 0, 255), 2)
+    over = outline(F.draw_arrows(frame, obj * moving[..., None], step=16,
+                                 min_mag=clip['moving_thr'],
+                                 scale=2, color=(0, 255, 255)), moving)
     ax.imshow(cv2.cvtColor(over, cv2.COLOR_BGR2RGB))
-    ax.set_title('(a) t = %.1f s: moving pixels (red outline, |flow| > %.1f px)\n'
-                 'and flow arrows (x3)' % (t, clip['moving_thr']), fontsize=9)
+    ax.set_title('(a) t = %.1f s: moving objects (red outline, speed > %.1f px/frame\n'
+                 'after removing camera motion) and their flow (arrows, x2)'
+                 % (t, clip['moving_thr']), fontsize=9)
     ax.axis('off')
 
     ax = fig.add_subplot(2, 2, 2)
-    ax.plot(df.t, df.moving_mean_speed, lw=1, label='mean speed of moving pixels')
-    ax.plot(df.t, df.background_median, lw=1, label='median speed of background')
+    ax.plot(df.t, df.camera_speed, lw=1, color='tab:orange',
+            label='camera motion (median over frame)')
+    ax.plot(df.t, df.moving_mean_speed.where(df.moving_blobs > 0), lw=1,
+            color='tab:blue', label='speed of moving objects')
+    ax.plot(df.t, df.residual_background, lw=1, color='tab:green',
+            label='background after removing camera motion')
+    ax.set_yscale('symlog', linthresh=1)
     ax.set_xlabel('time (s)')
     ax.set_ylabel('px / frame')
-    ax2 = ax.twinx()
-    ax2.plot(df.t, df.moving_blobs, lw=0.8, color='0.6', label='moving regions')
-    ax2.set_ylabel('number of moving regions', color='0.4')
     ax.legend(loc='upper left', fontsize=8)
-    ax.set_title('(b) speed over time; background stays at ~0 '
-                 '-> the camera is not moving', fontsize=9)
+    ax.set_title('(b) camera motion vs object motion over time', fontsize=9)
+    ax.grid(alpha=0.3)
 
     ax = fig.add_subplot(2, 2, 3, projection='polar')
     th = np.radians(np.arange(N_ANG) * 360 / N_ANG + 5)
     # image y points down; negate so "up the image" is up on the plot
-    ax.bar(-th, ang_hist / ang_hist.sum(), width=np.radians(360 / N_ANG),
+    ax.bar(-th, ang_hist / max(ang_hist.sum(), 1), width=np.radians(360 / N_ANG),
            color='tab:blue', alpha=0.8)
     ax.set_xticks(np.radians([0, 90, 180, 270]))
     ax.set_xticklabels(['right', 'up', 'left', 'down'])
     ax.set_yticklabels([])
-    ax.set_title('(c) direction of motion, all moving pixels, whole clip',
+    ax.set_title('(c) direction of object motion, all moving pixels, whole clip',
                  fontsize=9)
 
     ax = fig.add_subplot(2, 2, 4)
-    H = frame.shape[0]
-    centers = (np.arange(N_ROWS) + 0.5) * H / N_ROWS
-    speed = row_sum / np.maximum(row_cnt, 1)
-    ok = row_cnt > 500
-    ax.plot(centers[ok], speed[ok], 'o-')
-    ax.set_xlabel('image row y (px)   top of image -> bottom (nearer camera)')
-    ax.set_ylabel('mean speed of moving pixels (px / frame)')
-    ax.set_title('(d) speed vs position in the image: nearer = faster in pixels',
-                 fontsize=9)
+    ax.scatter(bl.bottom_y, bl.speed, s=4, alpha=0.25, color='tab:blue',
+               label='one moving region in one frame')
+    db = depth_bins(bl, frame.shape[0])
+    if db:
+        ax.plot([d[0] for d in db], [d[1] for d in db], 'o-', color='tab:red',
+                label='median per 30 px band')
+    ax.set_xlabel('y where the vehicle meets the road (px)   '
+                  'farther  ->  nearer the camera')
+    ax.set_ylabel('speed in the image (px / frame)')
+    ax.set_title('(d) image speed vs distance from the camera', fontsize=9)
+    ax.legend(fontsize=8)
     ax.grid(alpha=0.3)
 
-    fig.suptitle('%s  (%d frames, %.0f fps)' % (clip['title'], len(df) + 1, fps),
+    fig.suptitle('%s  (%d frames, %.0f fps)' % (clip['title'], n_frames, fps),
                  fontsize=11)
     fig.tight_layout()
-    fig.savefig(os.path.join(RESULTS, 'evidence_%s.png' % name), dpi=110)
+    fig.savefig(os.path.join(RESULTS, 'evidence_%s.png' % name), dpi=100)
     plt.close(fig)
 
 
@@ -213,8 +280,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[1])
     ap.add_argument('--clip', help='one clip name from data/clips.json')
     a = ap.parse_args()
-    clips = load_clips()
-    for name, clip in clips.items():
+    for name, clip in load_clips().items():
         if a.clip and name != a.clip:
             continue
         process(name, clip)

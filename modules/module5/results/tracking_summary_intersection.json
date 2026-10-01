@@ -1,0 +1,17 @@
+{
+  "frame": 583,
+  "points": 38,
+  "reliable": 29,
+  "moving_reliable": 21,
+  "median_err_vs_actual": 0.0809041450783907,
+  "mean_err_vs_actual": 0.9415729997058611,
+  "p90_err_vs_actual": 1.5252124796005735,
+  "median_err_vs_opencv": 0.003282808927955965,
+  "median_moved_px": 10.834809303283691,
+  "max_moved_px": 11.068721771240234,
+  "within_half_px": 26,
+  "over_3px": 3,
+  "median_err_moving": 0.10169676858540282,
+  "median_err_background": 0.07432819428655546,
+  "median_moved_background": 0.09336008131504059
+}

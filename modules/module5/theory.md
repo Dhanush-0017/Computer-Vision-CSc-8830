@@ -61,10 +61,30 @@ so:
 4. **Coming or going** — the $\dot Z$ term makes an approaching object expand
    (flow points outward from a point, positive divergence) and a receding object
    contract toward a point.
-5. **Whether the camera moves** — camera motion puts flow on *every* pixel,
-   including the static background. A background with zero flow means a fixed camera.
-6. **Where the assumption breaks** — brightness constancy fails when lighting
-   changes, so a lighting flicker shows up as flow on everything at once.
+5. **How the camera moves** — camera motion puts flow on *every* pixel,
+   including the static background, so the background's flow measures the
+   camera's own motion (below).
+6. **Where flow cannot be measured** — on a flat patch $\nabla I = 0$, the
+   constraint equation says nothing, and the flow comes out ~0 whatever moved.
+
+**Separating camera motion from object motion.** Both videos were filmed
+hand-held. If the camera only rotates (hand shake, or turning on the spot to
+pan), every static point moves between frames by the same homography,
+whatever its depth: with $K$ the intrinsics and $R$ the small rotation,
+$\tilde{\mathbf x}_2 \sim K R K^{-1}\tilde{\mathbf x}_1 = H\tilde{\mathbf x}_1$.
+So $H$ is fitted with RANSAC to corners tracked across the whole frame. Most of
+the frame is static, so moving cars end up as outliers. The flow $H$ alone
+predicts is $\mathbf u_{\text{cam}}(\mathbf x) = \pi(H\tilde{\mathbf x}) - \mathbf x$, and
+
+$$
+\mathbf u_{\text{object}} = \mathbf u_{\text{measured}} - \mathbf u_{\text{cam}}
+$$
+
+is how things moved in the world. A pixel counts as moving when
+$|\mathbf u_{\text{object}}|$ exceeds a threshold. It must also be close to
+texture (smallest structure-tensor eigenvalue above the frame's median): on a
+flat patch the measured flow is ~0, which would otherwise look like motion
+against a panning camera.
 
 The evidence for each one, in the two videos, is in the report and on the
 web page.
@@ -137,7 +157,8 @@ pixel, so $I_2$ has to be interpolated. That is what A4 is for.
 within about the window's half-width. For faster motion, build image pyramids
 (halve the resolution $L$ times), solve at the coarsest level where the motion
 is $2^{L}$ times smaller, then double $\mathbf d$ and use it as the starting
-guess one level up [5]. `flow.lk_track` does this with 3 levels and a 21×21 window.
+guess one level up [5]. `flow.lk_track` does this with 4 levels and a 21×21 window,
+enough for the ~25 px/frame of the nearest cars.
 
 **Gradients.** Central differences:
 $I_x(x, y) = \tfrac12\,[I(x{+}1, y) - I(x{-}1, y)]$,
@@ -407,7 +428,7 @@ Camera centres are $\mathbf C_i = -R_i^T\mathbf t_i$, put into the same frame.
 8. E. Malis and M. Vargas, "Deeper understanding of the homography decomposition
    for vision-based control," INRIA Research Report RR-6303, 2007.
 9. G. Bradski, "The OpenCV Library," *Dr. Dobb's Journal of Software Tools*, 2000.
-10. Video 1: OpenCV sample data `samples/data/vtest.avi`,
-    https://github.com/opencv/opencv (first 30 s).
-11. Video 2: Intel IoT DevKit, `store-aisle-detection.mp4`,
-    https://github.com/intel-iot-devkit/sample-videos, CC BY 4.0 (5–35 s).
+10. M. A. Fischler and R. C. Bolles, "Random sample consensus: a paradigm for
+    model fitting with applications to image analysis and automated
+    cartography," *Communications of the ACM*, vol. 24, no. 6, pp. 381–395, 1981.
+11. Videos 1 and 2: my own recordings on an iPhone (IMG_1893, IMG_1895).

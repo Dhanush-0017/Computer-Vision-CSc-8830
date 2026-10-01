@@ -21,12 +21,12 @@ Take 2 videos, at least 30 s each with motion. For each:
 | File | What it does |
 |---|---|
 | `__init__.py` | The page in the web app (4 tabs) |
-| `flow.py` | Part A maths: Farneback flow, flow colouring, **my Lucas–Kanade** (pyramid + iterations), **bilinear interpolation**, correlation-based "actual" position |
-| `make_flow_videos.py` | Part A: flow video + evidence plots for each clip |
+| `flow.py` | Part A maths: Farneback flow, flow colouring, camera motion (homography + RANSAC), **my Lucas–Kanade** (pyramid + iterations), **bilinear interpolation**, correlation-based "actual" position |
+| `make_flow_videos.py` | Part A: flow video, camera-motion removal and evidence plots for each clip |
 | `validate_tracking.py` | Part A: predicted vs actual positions on two consecutive frames, and one point worked through by hand |
 | `sfm.py` | Part B: DLT homography → R, t, n (by hand) → triangulation → refinement → scale → boundary |
 | `theory.md` | All the derivations (A: flow constraint, LK tracking, bilinear; B: plane homography, decomposition, triangulation) |
-| `data/videos/` | The two 30 s clips |
+| `data/videos/` | The two 30 s clips (my own recordings) |
 | `data/clips.json` | Where the clips come from, licence, thresholds |
 | `data/sfm/` | The 4 photos used for SfM, and `camera.json` (K and distortion) |
 | `results/` | Everything the scripts write (videos, plots, CSVs, worked calculations) |
@@ -50,33 +50,41 @@ a browser.
 
 ## Part A — results
 
-Videos: **Video 1** is OpenCV's sample `vtest.avi`, the first 30 s: a fixed
-camera over a campus path, 10 fps. **Video 2** is Intel's `store-aisle-detection.mp4`
-(CC BY 4.0), 5–35 s: a fixed camera looking down a shop aisle, 30 fps.
+Both videos are my own, recorded hand-held on my iPhone at a road intersection
+(`data/videos/`, cut from `IMG_1893.MOV` and `IMG_1895.MOV`, which stay on my
+machine and are git-ignored). **Video 1** (0–30 s): cars crossing both ways,
+phone held as still as I could. **Video 2** (5–35 s): held still at first,
+then I turn left and later right across the scene. Both were tone-mapped from
+HDR to SDR and scaled to 960×540 at 30 fps.
 
-What the flow shows, measured over each whole clip (`evidence_*.png`):
+Because the phone was hand-held, every frame's **camera motion** is measured
+too (`flow.camera_motion`: a homography fitted with RANSAC to corners across
+the frame) and subtracted before deciding what is moving.
+
+What the flow shows, over each whole clip (`evidence_*.png`):
 
 | | Video 1 | Video 2 |
 |---|---|---|
-| background median speed (camera fixed?) | 0.016 px/frame | 0.002 px/frame |
-| mean speed of moving pixels | 4.7 px/frame | 2.0 px/frame |
-| main direction of motion | left | up-left (walking away up the aisle) |
-| speed, top of image → bottom (far → near) | 1.5 → 6.6 px/frame | 1.0 → 3.0 px/frame |
-| camera shake detected | no | yes, at 5.2 s and 14.1–14.4 s |
+| camera motion | 0.10 px/frame median (hand shake) | 0.15 still, then turning left (10–20 s) and right (25–30 s), up to 7.4 px/frame |
+| background after removing it | 0.07 px/frame | 0.10 px/frame |
+| moving cars: speed | 10.8 px/frame average, up to 28 | 11.3 px/frame average, up to 26 |
+| direction | both ways (48 % left, 52 % right) | 91 % right |
+| image speed, far → near lane | 10 → 24 px/frame | 6 → 20 px/frame |
 
 Tracking check, two consecutive frames with a typical amount of motion
 (`validate_tracking.py`):
 
-| | Video 1 (frames 138→139) | Video 2 (frames 800→801) |
+| | Video 1 (frames 583→584) | Video 2 (frames 289→290) |
 |---|---|---|
-| points (reliable) | 38 (23) | 38 (38) |
-| median \|predicted − actual\| | **0.10 px** | **0.08 px** |
-| 90th percentile | 0.18 px | 0.38 px |
-| median difference from OpenCV's LK | 0.007 px | 0.008 px |
+| points (reliable) | 38 (29) | 36 (26) |
+| how far the cars moved (median) | 10.8 px | 21.3 px |
+| median \|predicted − actual\| | **0.08 px** | **0.09 px** |
+| reliable points within 0.5 px | 26 of 29 | 22 of 26 |
+| median difference from OpenCV's LK | 0.003 px | 0.006 px |
 
-"Reliable" means the patch still correlates at ≥ 0.9 in the next frame. Video 1
-is only 10 fps, so legs and arms change shape between frames. Those points are
-listed in the CSV but not counted.
+The few points that disagree by several pixels sit on a car's outline, where
+the window holds both the moving car and the still road (two motions in one
+window, which LK's assumption doesn't allow).
 
 ## Part B — results
 
@@ -90,8 +98,8 @@ corners give the correspondences. The screen's 4 corners are the boundary.
 | reprojection error, 54 grid points × 4 views | **0.12 px** RMS |
 | reprojection error, boundary corners | 1.99 px RMS |
 | square side recovered (true 30 mm) | 30.00 mm along rows, 29.96 mm down columns |
-| all 54 grid points vs the true board | 0.29 mm RMS |
-| camera positions vs `solvePnP` | 5.7 mm mean, 9.3 mm worst, at 1.2–1.8 m |
+| all 54 grid points vs the true board | 0.31 mm RMS |
+| camera positions vs `solvePnP` | 9.1 mm mean, 23.4 mm worst, at 1.2–1.8 m |
 | estimated boundary | **643 × 370 mm**, corners 89.8°, 90.0°, 90.3°, 90.0° |
 
 The scale comes from one length: a square on the screen is taken as 30 mm,

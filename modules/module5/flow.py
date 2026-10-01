@@ -11,6 +11,9 @@ Used by the web page (__init__.py) and by the two scripts:
 What's here:
     read_frames        load a clip
     dense_flow         Farneback dense optical flow (OpenCV)
+    camera_motion      how the (hand-held) camera moved: homography, RANSAC
+    camera_flow        the flow that camera motion alone would cause
+    textured           where there is enough texture to measure flow
     flow_to_color      flow -> colour picture (hue = direction, brightness = speed)
     draw_arrows        flow -> arrows drawn on the frame
     color_wheel        the legend for flow_to_color
@@ -62,13 +65,61 @@ def dense_flow(prev_bgr, next_bgr):
     displacement in pixels from prev to next.
 
     Farneback fits a quadratic polynomial to each neighbourhood in both frames
-    and solves for the shift that maps one onto the other; with a 3-level
-    pyramid it can follow motions of several pixels per frame.
+    and solves for the shift that maps one onto the other. A 5-level pyramid
+    (each level half the size) lets it follow cars moving 20+ px per frame.
     """
     return cv2.calcOpticalFlowFarneback(
         gray(prev_bgr), gray(next_bgr), None,
-        pyr_scale=0.5, levels=3, winsize=15, iterations=3,
+        pyr_scale=0.5, levels=5, winsize=15, iterations=3,
         poly_n=5, poly_sigma=1.2, flags=0)
+
+
+def camera_motion(prev_bgr, next_bgr):
+    """How the CAMERA moved between two frames (my phone was hand-held).
+
+    Corners spread over the whole frame are tracked, and a homography is
+    fitted to them with RANSAC. Most of the frame is static background, so
+    the fit follows the background; moving cars are outliers and are ignored.
+    For a camera that only rotates (hand shake, panning while standing still)
+    a homography describes the background motion exactly, whatever the depth.
+    Returns (H, fraction of corners that agree with it).
+    """
+    g1, g2 = gray(prev_bgr), gray(next_bgr)
+    p = cv2.goodFeaturesToTrack(g1, 600, 0.01, 12)
+    if p is None or len(p) < 8:
+        return np.eye(3), 0.0
+    q, st, _ = cv2.calcOpticalFlowPyrLK(g1, g2, p, None, winSize=(21, 21),
+                                        maxLevel=4)
+    ok = st.ravel() == 1
+    if ok.sum() < 8:
+        return np.eye(3), 0.0
+    H, inl = cv2.findHomography(p[ok], q[ok], cv2.RANSAC, 1.5)
+    if H is None:
+        return np.eye(3), 0.0
+    return H, float(inl.mean())
+
+
+def textured(bgr, grow=15):
+    """Where the image has enough texture for flow to be measured at all.
+
+    Flow comes from brightness gradients; on a flat patch (clear sky, plain
+    road) there are none, so Farneback returns ~0 there whatever really moved
+    (the aperture problem, theory.md A1). When the camera pans, 'measured 0'
+    minus 'camera moved 7 px' would then look like an object moving. So only
+    pixels within `grow` px of real texture (smallest structure-tensor
+    eigenvalue above the frame's median) are allowed to count as moving."""
+    lam = cv2.cornerMinEigenVal(gray(bgr), 5)
+    t = (lam > np.median(lam)).astype(np.uint8)
+    return cv2.dilate(t, np.ones((grow, grow), np.uint8)) > 0
+
+
+def camera_flow(H, shape):
+    """The flow field the camera motion H alone would produce."""
+    h, w = shape[:2]
+    y, x = np.mgrid[0:h, 0:w].astype(np.float32)
+    pts = np.dstack([x, y]).reshape(-1, 1, 2)
+    to = cv2.perspectiveTransform(pts, H).reshape(h, w, 2)
+    return to - np.dstack([x, y])
 
 
 def flow_to_color(flow, max_mag):
@@ -116,29 +167,42 @@ def draw_arrows(bgr, flow, step=16, min_mag=0.5, scale=3.0,
     return out
 
 
-def frame_stats(flow, thr):
+def frame_stats(flow, thr, cam=None, tex=None):
     """Numbers used as evidence for what the flow tells us.
 
-    thr: speed (px/frame) above which a pixel counts as moving.
+    flow: the measured flow. cam: the part of it caused by the camera moving
+    (camera_flow), or None for a fixed camera. What is left over,
+    flow - cam, is how things moved in the world, and a pixel counts as
+    moving when that is faster than thr (px/frame) -- and, if tex is given
+    (see textured), it is somewhere flow can actually be measured.
     """
-    mag = np.hypot(flow[..., 0], flow[..., 1])
+    if cam is None:
+        cam = np.zeros_like(flow)
+    obj = flow - cam
+    mag = np.hypot(obj[..., 0], obj[..., 1])
     moving = mag > thr
+    if tex is not None:
+        moving &= tex
     n = int(moving.sum())
+    cmag = np.hypot(cam[..., 0], cam[..., 1])
     st = {
         'moving_fraction': n / moving.size,
-        # the background's speed: if the camera were panning or shaking this
-        # would be well above zero everywhere
-        'background_median': float(np.median(mag[~moving])) if n < moving.size else 0.0,
+        # camera motion: its median speed over the frame, and its direction
+        'camera_speed': float(np.median(cmag)),
+        'camera_dx': float(np.median(cam[..., 0])),
+        'camera_dy': float(np.median(cam[..., 1])),
+        # background after removing the camera motion: should be ~0
+        'residual_background': float(np.median(mag[~moving])) if n < moving.size else 0.0,
         'moving_mean_speed': float(mag[moving].mean()) if n else 0.0,
-        'mean_u': float(flow[..., 0][moving].mean()) if n else 0.0,
-        'mean_v': float(flow[..., 1][moving].mean()) if n else 0.0,
+        'mean_u': float(obj[..., 0][moving].mean()) if n else 0.0,
+        'mean_v': float(obj[..., 1][moving].mean()) if n else 0.0,
     }
-    # moving regions = connected blobs of moving pixels (roughly: people)
+    # moving regions = connected blobs of moving pixels (roughly: vehicles)
     m8 = cv2.morphologyEx(moving.astype(np.uint8), cv2.MORPH_OPEN,
-                          np.ones((3, 3), np.uint8))
-    m8 = cv2.morphologyEx(m8, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
+                          np.ones((5, 5), np.uint8))
+    m8 = cv2.morphologyEx(m8, cv2.MORPH_CLOSE, np.ones((9, 9), np.uint8))
     k, _, s, _ = cv2.connectedComponentsWithStats(m8)
-    st['moving_blobs'] = int((s[1:, cv2.CC_STAT_AREA] >= 150).sum()) if k > 1 else 0
+    st['moving_blobs'] = int((s[1:, cv2.CC_STAT_AREA] >= 400).sum()) if k > 1 else 0
     return st, moving
 
 
@@ -209,7 +273,7 @@ def _lk_level(I1, I2, Ix, Iy, x, y, d0, half, iters, eps):
     return d, k, lam_min
 
 
-def lk_track(img1, img2, pts, win=21, levels=3, iters=30, eps=0.01):
+def lk_track(img1, img2, pts, win=21, levels=4, iters=30, eps=0.01):
     """Pyramidal iterative Lucas-Kanade, from scratch.
 
     pts: Nx2 array of (x, y) in img1. Returns (new_pts Nx2, info list).
@@ -272,9 +336,9 @@ def lk_workings(img1, img2, pt, win=7, iters=10):
             'ssd_final': float(np.sum(e * e))}
 
 
-def ncc_locate(img1, img2, pt, patch=21, search=24):
+def ncc_locate(img1, img2, pt, patch=21, search=40):
     """Where did the patch around pt actually go? Measured WITHOUT any flow
-    equation: slide the patch over a search window in img2, take the peak of
+    equation: slide the patch over a search window (+/-40 px) in img2, take the peak of
     normalised cross-correlation, refine to sub-pixel with a parabola through
     the peak and its neighbours. Returns ((x, y), peak score)."""
     I1 = gray(img1).astype(np.float32)

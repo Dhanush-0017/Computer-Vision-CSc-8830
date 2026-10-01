@@ -89,18 +89,38 @@ def _pick_clip(key):
 # ----------------------------------------------------------------------------
 # Tab 1: optical flow
 # ----------------------------------------------------------------------------
+def _pan_segments(df, thr=1.0):
+    """Stretches where the camera turns faster than thr px/frame:
+    [(start s, end s, mean horizontal camera flow, peak speed)]."""
+    pan = (df.camera_speed > thr).values
+    out, start = [], None
+    for k, p in enumerate(list(pan) + [False]):
+        if p and start is None:
+            start = k
+        elif not p and start is not None:
+            seg = df.iloc[start:k]
+            if seg.t.iloc[-1] - seg.t.iloc[0] >= 1.0:
+                out.append((seg.t.iloc[0], seg.t.iloc[-1],
+                            seg.camera_dx.mean(), seg.camera_speed.max()))
+            start = None
+    return out
+
+
 def _tab_flow():
     st.subheader('A. Optical flow of two 30-second videos')
     name = _pick_clip('m5_flow_clip')
     clip = _clips()[name]
-    st.caption('%s  \nSource: %s — [%s](%s), %s'
-               % (clip['about'], clip['source'], clip['url'], clip['url'],
-                  clip['license']))
+    st.caption('%s  \nSource: %s' % (clip['about'], clip['source']))
     vid = os.path.join(RES, 'flow_%s.mp4' % name)
     if os.path.exists(vid):
-        st.markdown('**The flow as a video.** Left: the clip with flow arrows '
-                    '(drawn 3× longer). Right: the flow field, colour = '
-                    'direction (legend top right), brightness = speed.')
+        st.markdown(
+            '**The flow as a video.** Right: the optical flow, colour = '
+            'direction (legend top right), brightness = speed. Left: the clip, '
+            'with moving objects outlined in red and their own motion as '
+            'arrows. I held the phone in my hand, so the camera moves too; '
+            'its motion is measured each frame (a homography fitted with '
+            'RANSAC to corners across the frame) and subtracted before '
+            'deciding what is moving.')
         st.video(vid)
     else:
         st.warning('Run `python make_flow_videos.py` to make the flow video.')
@@ -110,16 +130,21 @@ def _tab_flow():
         i = st.slider('frame', 0, len(frames) - 2, len(frames) // 2,
                       key='m5_frame_' + name)
         fl = F.dense_flow(frames[i], frames[i + 1])
+        Hc, _ = F.camera_motion(frames[i], frames[i + 1])
+        cam = F.camera_flow(Hc, fl.shape)
+        s, moving = F.frame_stats(fl, clip['moving_thr'], cam,
+                                  F.textured(frames[i]))
+        obj = (fl - cam) * moving[..., None]
         c1, c2 = st.columns(2)
-        c1.image(_rgb(F.draw_arrows(frames[i], fl, 16, 0.5, 3)),
-                 caption='frame %d, t = %.2f s' % (i, i / fps), width='stretch')
+        c1.image(_rgb(F.draw_arrows(frames[i], obj, 20, 1.0, 2, (0, 255, 255))),
+                 caption='frame %d, t = %.2f s: object motion (camera motion '
+                 'removed)' % (i, i / fps), width='stretch')
         c2.image(_rgb(F.flow_to_color(fl, clip['max_mag'])),
-                 caption='flow %d → %d' % (i, i + 1), width='stretch')
-        s, _ = F.frame_stats(fl, clip['moving_thr'])
+                 caption='optical flow %d → %d' % (i, i + 1), width='stretch')
         a, b, c, d = st.columns(4)
-        a.metric('moving pixels', '%.1f %%' % (100 * s['moving_fraction']))
-        b.metric('speed of moving pixels', '%.2f px/frame' % s['moving_mean_speed'])
-        c.metric('background speed', '%.3f px/frame' % s['background_median'])
+        a.metric('camera motion', '%.2f px/frame' % s['camera_speed'])
+        b.metric('moving pixels', '%.1f %%' % (100 * s['moving_fraction']))
+        c.metric('speed of moving pixels', '%.1f px/frame' % s['moving_mean_speed'])
         d.metric('moving regions', s['moving_blobs'])
 
     st.markdown('#### What can be inferred from optical flow — with evidence')
@@ -130,51 +155,64 @@ def _tab_flow():
     df = _csv('stats_%s.csv' % name)
     if sm is None or df is None:
         return
-    rs = [v for v in sm['row_speed'] if v > 0]
-    # a lighting change: the background's median flow jumps far above its
-    # normal level (0.2 px/frame is > 10x the normal median in both clips)
-    flick = df[df.background_median > 0.2]
+    db = sm['depth_bins']
     lines = [
-        '1. **Which pixels move — segmentation with no model.** Thresholding '
-        'the flow speed at %.1f px/frame outlines the moving people (plot a, '
-        'red). Up to %d separate moving regions appear in one frame.'
-        % (clip['moving_thr'], sm['max_blobs']),
-        '2. **The camera is fixed.** The median speed of the background is '
-        '%.3f px/frame over the whole clip (plot b, orange). If the camera '
-        'panned or shook, every pixel would have flow.' % sm['background_median_px'],
-        '3. **Direction of travel.** Plot c is the direction histogram of all '
-        'moving pixels. The most common direction is %.0f° in image '
-        'coordinates, i.e. **%s** in the picture.'
-        % (sm['dominant_dirs_deg'][0], _compass(sm['dominant_dirs_deg'][0])),
-        '4. **Speed vs depth.** The same walking speed gives a larger image '
-        'speed nearer the camera ($u \\propto 1/Z$). The mean speed of '
-        'moving pixels rises from %.1f px/frame at the top of the image (far) to '
-        '%.1f px/frame near the bottom (near) (plot d).' % (rs[0], rs[-1]),
-        '5. **How fast.** Moving pixels travel on average %.2f px/frame = '
-        '%.0f px/s at %.0f fps.'
-        % (sm['moving_speed_px'], sm['moving_speed_px'] * sm['fps'], sm['fps']),
+        '1. **What is moving — segmentation with no model of a car.** After '
+        'removing the camera motion, pixels faster than %.1f px/frame outline '
+        'the moving vehicles (plot a, red). Something is moving in %.0f %% of '
+        'the frames, up to %d separate moving regions at once.'
+        % (clip['moving_thr'], 100 * sm['frames_with_motion'], sm['max_blobs']),
     ]
-    if len(flick):
-        # group neighbouring frames into events
-        ev, cur = [], [flick.t.iloc[0], flick.t.iloc[0]]
-        for t in flick.t.iloc[1:]:
-            if t - cur[1] <= 0.2:
-                cur[1] = t
-            else:
-                ev.append(cur)
-                cur = [t, t]
-        ev.append(cur)
-        when = ' and '.join(('%.1f s' % a) if b - a < 0.05 else ('%.1f–%.1f s' % (a, b))
-                            for a, b in ev)
+    segs = _pan_segments(df)
+    if not segs:
         lines.append(
-            '6. **The camera moved briefly.** At t = %s the whole '
-            'background suddenly has flow (median up to %.2f px/frame, against '
-            '%.3f normally; plot b, orange spikes). The background flow in '
-            'those frames flips up and down from one frame to the next, and the '
-            'average brightness changes by about 1 grey level, so it is a short '
-            'camera shake, not a lighting change. Flow picks up camera motion '
-            'even when it is well under a pixel.'
-            % (when, flick.background_median.max(), sm['background_median_px']))
+            '2. **How the camera moved.** The background flow says the hand-held '
+            'phone moved only %.2f px/frame (median; %.2f at the 95th '
+            'percentile) — hand shake, not a pan. After subtracting it the '
+            'background is left at %.2f px/frame (plot b, orange vs green).'
+            % (sm['camera_speed_median'], sm['camera_speed_p95'],
+               sm['residual_background_median']))
+    else:
+        desc = []
+        for t0, t1, dx, peak in segs:
+            # scene content moving right in the image = camera turning left
+            desc.append('%.0f–%.0f s turning **%s** (picture slides %s, up to '
+                        '%.1f px/frame)' % (t0, t1, 'left' if dx > 0 else 'right',
+                                            'right' if dx > 0 else 'left', peak))
+        still = df[df.camera_speed <= 1.0]
+        lines.append(
+            '2. **How the camera moved.** The flow of the background gives the '
+            'camera\'s own motion frame by frame: held still at first (%.2f '
+            'px/frame, hand shake), then %s (plot b, orange). Subtracting it '
+            'leaves the background at %.2f px/frame, so the cars can still be '
+            'picked out while the camera turns.'
+            % (still.camera_speed.median(), '; '.join(desc),
+               sm['residual_background_median']))
+    lr = sm['left_vs_right'][0]
+    lines += [
+        '3. **Direction of travel.** Plot c is the direction histogram of '
+        'all moving pixels. %s'
+        % ('Traffic goes both ways: %.0f %% of the moving pixels move left and '
+           '%.0f %% right — the two directions of the road.' % (100 * lr, 100 * (1 - lr))
+           if 0.25 < lr < 0.75 else
+           'Nearly all of it is **%s** (%.0f %%).'
+           % ('left' if lr > 0.5 else 'right', 100 * max(lr, 1 - lr))),
+        '4. **Distance.** The same road speed gives a larger image speed '
+        'nearer the camera ($u \\propto 1/Z$). Plot d puts each moving region '
+        'at the y where it meets the road (lower = nearer): vehicles meeting '
+        'the road around y ≈ %d px move %.1f px/frame (median), those around '
+        'y ≈ %d px, the nearest lane, %.1f px/frame.'
+        % (db[0][0], db[0][1], db[-1][0], db[-1][1]),
+        '5. **How fast.** Moving pixels travel on average %.1f px/frame '
+        '(%.0f px/s at %.0f fps), up to %.0f px/frame for the nearest cars.'
+        % (sm['moving_speed_px'], sm['moving_speed_px'] * sm['fps'], sm['fps'],
+           sm['moving_speed_max']),
+        '6. **Where flow cannot be measured.** On flat patches (sky, plain '
+        'road) there is no gradient, so flow reads ~0 whatever moved — the '
+        'aperture problem. While panning that would look like motion against '
+        'the camera, so only pixels near texture are allowed to count as '
+        'moving (`flow.textured`).',
+    ]
     st.markdown('\n'.join(lines))
 
 
@@ -186,8 +224,10 @@ def _track_live(name, i):
     frames, _ = _frames(name)
     f1, f2 = frames[i], frames[i + 1]
     fl = F.dense_flow(f1, f2)
+    Hc, _ = F.camera_motion(f1, f2)
+    obj = fl - F.camera_flow(Hc, fl.shape)
     g = F.gray(f1)
-    mag = np.hypot(fl[..., 0], fl[..., 1])
+    mag = np.hypot(obj[..., 0], obj[..., 1])
     m = cv2.erode(((mag > _clips()[name]['moving_thr']) * 255).astype(np.uint8),
                   np.ones((7, 7), np.uint8))
     m[:40], m[-40:], m[:, :40], m[:, -40:] = 0, 0, 0, 0
@@ -214,7 +254,8 @@ def _tab_tracking():
     st.markdown(
         '**Predicted:** my Lucas–Kanade (`flow.lk_track`) solves '
         '$G\\,\\mathbf d = \\mathbf b$ from the derivation (tab 4), iterating '
-        'with bilinear interpolation, on a 3-level pyramid.  \n'
+        'with bilinear interpolation, on a 4-level pyramid (cars move up to '
+        '~25 px per frame).  \n'
         '**Actual:** where the pixel really went, measured *without* any flow '
         'equation — normalised cross-correlation of the 21×21 patch around '
         'the point, peak refined to sub-pixel.')
@@ -228,15 +269,19 @@ def _tab_tracking():
                 % (s['frame'], s['frame'] + 1))
     st.image(os.path.join(RES, 'tracking_%s.png' % name), width='stretch')
     a, b, c, d = st.columns(4)
-    a.metric('reliable points', '%d of %d' % (s['reliable'], s['points']))
+    a.metric('reliable points', '%d of %d (median shift %.0f px)'
+             % (s['reliable'], s['points'], s['median_moved_px']))
     b.metric('median |predicted − actual|', '%.2f px' % s['median_err_vs_actual'])
     c.metric('90th percentile', '%.2f px' % s['p90_err_vs_actual'])
     d.metric('median vs OpenCV LK', '%.3f px' % s['median_err_vs_opencv'])
     st.caption('"Reliable" = the correlation peak is ≥ 0.9, i.e. the patch '
-               'still looks like itself in frame 2. Points below that (an arm '
-               'swinging, a person passing in front) are listed but not '
-               'counted. There the "actual" position itself is uncertain, and '
-               'brightness constancy does not hold either.')
+               'still looks like itself in frame 2 (motion blur and wheels '
+               'turning make some car patches change). %d of the %d reliable '
+               'points agree within 0.5 px. The few that disagree by several '
+               'pixels sit on a car\'s outline, where the window holds both '
+               'the moving car and the still road: two motions in one window, '
+               'which the "flow is constant in the window" assumption of LK '
+               'does not allow.' % (s['within_half_px'], s['reliable']))
     show = df.rename(columns={'pred_x': 'predicted x', 'pred_y': 'predicted y',
                               'actual_x': 'actual x', 'actual_y': 'actual y',
                               'err_vs_actual_px': 'error (px)',
