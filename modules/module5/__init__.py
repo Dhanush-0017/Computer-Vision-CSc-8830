@@ -41,31 +41,47 @@ def _rgb(bgr):
     return cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
 
 
-@st.cache_data(show_spinner=False)
 def _clips():
-    with open(os.path.join(DATA, 'clips.json')) as f:
-        return json.load(f)
+    return _json_cached(os.path.join(DATA, 'clips.json'),
+                        _mtime(os.path.join(DATA, 'clips.json')))
 
 
+def _mtime(p):
+    return os.path.getmtime(p) if os.path.exists(p) else None
+
+
+# The cached readers take the file's modification time as an argument, so a
+# re-generated result file (e.g. after a git push to Streamlit Cloud, which
+# keeps the app running) is read again instead of served from the cache.
 @st.cache_data(show_spinner=False)
-def _json(name):
-    p = os.path.join(RES, name)
-    if not os.path.exists(p):
-        return None
+def _json_cached(p, mtime):
     with open(p) as f:
         return json.load(f)
 
 
+def _json(name):
+    p = os.path.join(RES, name)
+    return _json_cached(p, _mtime(p)) if os.path.exists(p) else None
+
+
 @st.cache_data(show_spinner=False)
+def _csv_cached(p, mtime):
+    return pd.read_csv(p)
+
+
 def _csv(name):
     p = os.path.join(RES, name)
-    return pd.read_csv(p) if os.path.exists(p) else None
+    return _csv_cached(p, _mtime(p)) if os.path.exists(p) else None
 
 
 @st.cache_data(show_spinner=False)
-def _text(path):
+def _text_cached(path, mtime):
     with open(path) as f:
         return f.read()
+
+
+def _text(path):
+    return _text_cached(path, _mtime(path))
 
 
 @st.cache_data(show_spinner=False)
