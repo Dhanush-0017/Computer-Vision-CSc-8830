@@ -24,11 +24,11 @@ Take 2 videos, at least 30 s each with motion. For each:
 | `flow.py` | Part A maths: Farneback flow, flow colouring, camera motion (homography + RANSAC), **my Lucas–Kanade** (pyramid + iterations), **bilinear interpolation**, correlation-based "actual" position |
 | `make_flow_videos.py` | Part A: flow video, camera-motion removal and evidence plots for each clip |
 | `validate_tracking.py` | Part A: predicted vs actual positions on two consecutive frames, and one point worked through by hand |
-| `sfm.py` | Part B: DLT homography → R, t, n (by hand) → triangulation → refinement → scale → boundary |
+| `sfm.py` | Part B: SIFT matching + panel corners → DLT homography → R, t, n (by hand) → triangulation → refinement → scale → boundary |
 | `theory.md` | All the derivations (A: flow constraint, LK tracking, bilinear; B: plane homography, decomposition, triangulation) |
 | `data/videos/` | The two 30 s clips (my own recordings) |
 | `data/clips.json` | Where the clips come from, licence, thresholds |
-| `data/sfm/` | The 4 photos used for SfM, and `camera.json` (K and distortion) |
+| `data/sfm/` | The 4 notebook photos used for SfM (my own, iPhone 13), and `camera.json` (K and distortion from Module 2) |
 | `results/` | Everything the scripts write (videos, plots, CSVs, worked calculations) |
 
 ## Running it
@@ -41,8 +41,8 @@ Scripts, from this folder:
 cd modules/module5
 python make_flow_videos.py     # A: results/flow_*.mp4, evidence_*.png, stats_*.csv  (~2.5 min)
 python validate_tracking.py    # A: results/tracking_*.csv/.png, workings_*.md
-python sfm.py                  # B: results/sfm_*.csv/.png/.json, workings_sfm.md
-python sfm.py --square-mm 28.5 # B, if a square on the screen measures differently
+python sfm.py --width-mm 170 --height-mm 230 --diag-mm 280
+                               # B: results/sfm_*.csv/.png/.json, workings_sfm.md
 ```
 
 `make_flow_videos.py` uses `ffmpeg` (if installed) to make the videos play in
@@ -88,21 +88,25 @@ window, which LK's assumption doesn't allow).
 
 ## Part B — results
 
-The object is my monitor screen, which is flat, showing the Module 2
-chessboard. It was photographed from 4 positions (IMG_1553, 1554, 1560, 1565
-from the Module 2 photo set) with the same calibrated iPhone. The chessboard
-corners give the correspondences. The screen's 4 corners are the boundary.
+The object is my spiral notebook (the "NEVER STOP" cover) lying flat on a
+library table, photographed from 4 positions with the same iPhone 13 I
+calibrated in Module 2 (IMG_2005, 2009, 2012, 2016; two from almost straight
+above, two at about 45°, distances 0.45–0.96 m). SIFT points on the cover's
+artwork, matched in all four photos, give the correspondences. The 4 corners of
+the cover's purple panel are the boundary.
+
+The panel was measured with the iPhone Measure app: 170 mm wide, 230 mm tall,
+280 mm diagonal. Only the width is used, to set the scale.
 
 | | |
 |---|---|
-| reprojection error, 54 grid points × 4 views | **0.12 px** RMS |
-| reprojection error, boundary corners | 1.99 px RMS |
-| square side recovered (true 30 mm) | 30.00 mm along rows, 29.96 mm down columns |
-| all 54 grid points vs the true board | 0.31 mm RMS |
-| camera positions vs `solvePnP` | 9.1 mm mean, 23.4 mm worst, at 1.2–1.8 m |
-| estimated boundary | **643 × 370 mm**, corners 89.8°, 90.0°, 90.3°, 90.0° |
+| feature points matched in all 4 views | 92 |
+| reprojection error, feature points | **0.81 px** RMS (full-resolution photos) |
+| reprojection error, boundary corners | 4.2 px RMS |
+| flatness of the reconstructed points | 0.35 mm RMS off the plane |
+| estimated boundary | **170 × 232 mm** (height measured: 230 mm) |
+| corner angles | 90.7°, 89.3°, 90.2°, 89.9° |
+| width ÷ height | 0.732 (measured 0.739) |
 
-The scale comes from one length: a square on the screen is taken as 30 mm,
-the value from the Module 2 calibration. If it measures differently with a
-ruler, re-run with `--square-mm`. All lengths scale with it; the angles,
-flatness and aspect ratio do not change.
+The measured diagonal (280 mm) is a little short of what the measured width
+and height give (286 mm); the reconstruction gives 287 mm.
