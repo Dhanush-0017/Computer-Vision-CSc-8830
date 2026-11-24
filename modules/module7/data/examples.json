@@ -1,0 +1,29 @@
+{
+  "Notebook (rectangle)": {
+    "left": "notebook_left.jpg",
+    "right": "notebook_right.jpg",
+    "shape": "rectangle",
+    "baseline_mm": 50,
+    "measured_distance_cm": 40,
+    "true_mm": {"width": 185, "height": 235},
+    "clicks": [[335, 440], [1180, 466], [1217, 1607], [308, 1635]]
+  },
+  "Cream tube (other shape)": {
+    "left": "tube_left.jpg",
+    "right": "tube_right.jpg",
+    "shape": "polygon",
+    "baseline_mm": 50,
+    "measured_distance_cm": 40,
+    "true_mm": {"edges": [60, 170, 32, 170]},
+    "clicks": [[618, 763], [917, 768], [822, 1620], [678, 1620]]
+  },
+  "Lid (circle)": {
+    "left": "lid_left.jpg",
+    "right": "lid_right.jpg",
+    "shape": "circle",
+    "baseline_mm": 50,
+    "measured_distance_cm": 40,
+    "true_mm": {"diameter": 135},
+    "clicks": [[410, 1290], [1070, 1290], [747, 948], [747, 1604]]
+  }
+}

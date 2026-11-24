@@ -18,6 +18,7 @@ theory doc, and **its own README**.
 | 3 | Image blurring & the convolution theorem | `modules/module3/` | [README](modules/module3/README.md) |
 | 4 | Human boundary detection (RGB & thermal, vs SAM2) + Fourier theory | `modules/module4/` | [README](modules/module4/README.md) |
 | 5–6 | Optical flow, Lucas–Kanade tracking & structure from motion | `modules/module5/` | [README](modules/module5/README.md) |
+| 7 | Stereo vision: object size from two photos, room size from video | `modules/module7/` | [README](modules/module7/README.md) |
 
 There's no Module 1 — Module 2 was the first assignment with code to submit.
 
