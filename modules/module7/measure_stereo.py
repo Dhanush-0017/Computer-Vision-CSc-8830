@@ -23,10 +23,6 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, 'data', 'photos')   # Problem 1 photo pairs
 
 
-def percent_error(estimate, truth):
-    return 100.0 * (estimate - truth) / truth
-
-
 def measure_example(name, example, baseline_mm):
     left = cv2.imread(os.path.join(DATA, example['left']), cv2.IMREAD_GRAYSCALE)
     right = cv2.imread(os.path.join(DATA, example['right']), cv2.IMREAD_GRAYSCALE)
@@ -65,23 +61,17 @@ def measure_example(name, example, baseline_mm):
     truth = example['true_mm']
     if example['shape'] == 'rectangle':
         width_mm, height_mm, edges = stereo.rectangle_size(points_3d)
-        print('  width : %6.1f mm  (ruler %d mm, error %+.1f%%)'
-              % (width_mm, truth['width'], percent_error(width_mm, truth['width'])))
-        print('  height: %6.1f mm  (ruler %d mm, error %+.1f%%)'
-              % (height_mm, truth['height'], percent_error(height_mm, truth['height'])))
+        print('  width : %6.1f mm  (ruler %d mm)' % (width_mm, truth['width']))
+        print('  height: %6.1f mm  (ruler %d mm)' % (height_mm, truth['height']))
 
     elif example['shape'] == 'circle':
         diameter, across, down = stereo.circle_diameter(points_3d)
-        print('  diameter: %6.1f mm  (ruler %d mm, error %+.1f%%)'
-              % (diameter, truth['diameter'],
-                 percent_error(diameter, truth['diameter'])))
+        print('  diameter: %6.1f mm  (ruler %d mm)' % (diameter, truth['diameter']))
 
     else:
         edges = stereo.polygon_edges(points_3d)
         for i in range(len(edges)):
-            print('  edge %d: %6.1f mm  (ruler %d mm, error %+.1f%%)'
-                  % (i + 1, edges[i], truth['edges'][i],
-                     percent_error(edges[i], truth['edges'][i])))
+            print('  edge %d: %6.1f mm  (ruler %d mm)' % (i + 1, edges[i], truth['edges'][i]))
 
 
 def main():

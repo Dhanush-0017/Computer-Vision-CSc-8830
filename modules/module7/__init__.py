@@ -304,7 +304,6 @@ def problem1():
         row = {'measurement': name, 'stereo (cm)': round(estimate / 10, 2)}
         if true_value is not None:
             row['ruler (cm)'] = true_value / 10
-            row['error (%)'] = round(100 * (estimate - true_value) / true_value, 1)
         table.append(row)
     st.dataframe(pd.DataFrame(table), hide_index=True)
 
