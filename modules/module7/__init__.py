@@ -108,8 +108,9 @@ def problem1():
     st.latex(r'Z = \frac{f \, B}{d} \qquad X = \frac{(u - c_x)\,Z}{f_x} '
              r'\qquad Y = \frac{(v - c_y)\,Z}{f_y}')
     st.caption('d is the disparity: how far the point shifts between the two '
-               'photos. In the code the phone is also allowed to turn a '
-               'little, so it uses full triangulation, which is the same idea.')
+               'photos. The code estimates the full rotation R and translation '
+               't between the two photos and triangulates each point, which '
+               'is the general form of the same idea.')
 
     examples = load_examples()
     source = st.radio('Photos', list(examples.keys()) + ['Upload my own pair'],
@@ -158,8 +159,8 @@ def problem1():
     angles = stereo.rotation_in_degrees(R)
     a, b, c = st.columns(3)
     a.metric('Matched features', n_matches)
-    b.metric('Phone turned (left/right)', '%.1f°' % angles[1])
-    c.metric('Slide (from t)', '%.0f mm' % np.linalg.norm(t))
+    b.metric('Rotation between photos', '%.1f°' % angles[1])
+    c.metric('Baseline (from t)', '%.0f mm' % np.linalg.norm(t))
     checks = stereo.matrix_checks(K, R, t)
     with st.expander('Matrices K, F, E, R, t and their checks'):
         c1, c2 = st.columns(2)
@@ -172,7 +173,7 @@ def problem1():
         c2.dataframe(pd.DataFrame(F_text), hide_index=True)
         c1.markdown('**E** (essential matrix, E = [t]x R)')
         c1.dataframe(pd.DataFrame(checks['E']).round(4), hide_index=True)
-        c2.markdown('**R** (how the phone turned)')
+        c2.markdown('**R** (rotation between the two photos)')
         c2.dataframe(pd.DataFrame(R).round(4), hide_index=True)
         st.write('t (mm) =', np.round(t.ravel(), 2))
         sv = checks['E_singular_values']
