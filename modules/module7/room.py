@@ -17,6 +17,10 @@ Each wall is measured from one video frame using the room's straight lines:
      gives the room height and the width of the door wall.
   5. The desk wall has no door, so its scale comes from the room height found
      in step 4 (the walls are all the same height).
+
+Run from modules/module7:
+    python room.py      prints the focal length, the room size and the checks
+The web page (__init__.py, Problem 3 tab) uses the same functions.
 """
 import os
 import json

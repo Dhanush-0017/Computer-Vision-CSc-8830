@@ -4,7 +4,7 @@ modules/module2/__init__.py -- Module 2: Object Dimension Measurement.
 This is the Streamlit version of calibrate.py / measure.py / validate.py
 combined into one page with tabs, so I don't have to run three separate CLI
 scripts and re-upload photos every time. app.py imports this automatically
-because it's named moduleN.py -- it never runs on its own.
+because its folder is named moduleN -- it never runs on its own.
 """
 import os
 import numpy as np

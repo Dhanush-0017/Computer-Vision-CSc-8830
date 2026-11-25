@@ -14,6 +14,10 @@ Measure an object from TWO photos taken from two spots 5 cm apart
   4. Triangulate each pair into a 3D point (X, Y, Z) in millimetres.
      Z is the distance from the camera.
   5. The size of the object is just the 3D distance between those points.
+
+Not run on its own: the web page (__init__.py) and measure_stereo.py both
+import it. To run Problem 1 from the command line:
+    python measure_stereo.py
 """
 import os
 import numpy as np

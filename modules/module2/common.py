@@ -5,6 +5,9 @@ Small pile of helpers shared by the Streamlit app and the standalone
 calibrate/measure/validate scripts, so I'm not copy-pasting the same
 pinhole-projection math in three places. Calibration save/load lives here too
 since basically every module needs it.
+
+Not run on its own: imported by __init__.py, calibrate.py, measure.py and
+validate.py.
 """
 import os
 import numpy as np
