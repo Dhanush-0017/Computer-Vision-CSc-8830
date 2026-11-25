@@ -203,10 +203,10 @@ def sidebar_brand():
         unsafe_allow_html=True)
 
 
-def sidebar_footer(repo_url):
+def sidebar_footer(student, school, repo_url):
     st.markdown(
-        '<div class="sb-foot"><a href="' + repo_url + '" target="_blank">'
-        'Source code on GitHub</a></div>',
+        '<div class="sb-foot">' + esc(student) + '<br>' + esc(school) +
+        '<br><a href="' + repo_url + '" target="_blank">Source code on GitHub</a></div>',
         unsafe_allow_html=True)
 
 

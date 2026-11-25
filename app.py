@@ -37,6 +37,8 @@ st.set_page_config(page_title='Computer Vision',
                    layout='wide',
                    initial_sidebar_state='expanded')
 
+STUDENT = 'Dhanush Nagarajan'
+SCHOOL = 'Georgia State University'
 REPO_URL = 'https://github.com/Dhanush-0017/Computer-Vision-CSc-8830'
 
 
@@ -204,7 +206,7 @@ if 'nav' not in st.session_state or st.session_state['nav'] not in labels:
 with st.sidebar:
     ui.sidebar_brand()
     choice = st.radio('Navigate', labels, key='nav', label_visibility='collapsed')
-    ui.sidebar_footer(REPO_URL)
+    ui.sidebar_footer(STUDENT, SCHOOL, REPO_URL)
 
 if choice == labels[0]:
     st.query_params.clear()
