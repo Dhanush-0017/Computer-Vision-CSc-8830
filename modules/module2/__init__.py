@@ -12,12 +12,21 @@ import pandas as pd
 import cv2
 import streamlit as st
 
+
 # --- metadata read by app.py to build the navigation ------------------------
 NUMBER = 2
 TITLE = 'Object Dimension Measurement'
 SUBTITLE = ('Camera calibration and perspective projection to recover real-world '
             '2D dimensions from a single image, validated over 20 experiments.')
 STATUS = 'complete'
+
+# the main numbers, shown in a box at the top of the page
+RESULTS = [
+    ('Calibration error', '0.39 px', 'RMS reprojection, 18 of 18 chessboard photos'),
+    ('Measurement error (MAE)', '1.64 mm', '20 measurements, 2.1-2.5 m away'),
+    ('Percentage error (MAPE)', '2.37%', 'RMSE 1.93 mm'),
+]
+THUMBNAIL = 'results/calibration_corners.jpg'      # picture for the home page card
 
 from .common import load_calib, save_calib, measure, decode_upload, CALIB_PATH
 
@@ -29,17 +38,14 @@ except Exception:
 
 
 def render():
-    st.title("Module 2 — Object Dimension Measurement")
-    st.caption("Camera calibration and perspective projection to recover "
-               "real-world 2D dimensions from a single image.")
 
     tab1, tab2, tab3, tab4 = st.tabs(
-        ['Step 1 — Calibration', 'Step 2 — Measure', 'Step 3 — Validation', 'Theory'])
+        ['Step 1 - Calibration', 'Step 2 - Measure', 'Step 3 - Validation', 'Theory'])
 
 
     # -- step 1: calibration --
     with tab1:
-        st.header('Step 1 — Camera Calibration')
+        st.header('Step 1 - Camera Calibration')
         st.markdown(
             'Upload chessboard photos taken with your smartphone. OpenCV locates the '
             'inner corners in each image and solves for the intrinsic matrix **K** '
@@ -76,9 +82,9 @@ def render():
                     corners = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1), crit)
                     objpoints.append(objp)
                     imgpoints.append(corners)
-                    log.append(f'OK   — {f.name}')
+                    log.append(f'OK   - {f.name}')
                 else:
-                    log.append(f'skip — {f.name} (corners not found)')
+                    log.append(f'skip - {f.name} (corners not found)')
                 prog.progress((i + 1) / len(files))
 
             if len(objpoints) < 5:
@@ -101,7 +107,7 @@ def render():
                 os.makedirs(os.path.dirname(CALIB_PATH), exist_ok=True)
                 np.savez(CALIB_PATH, K=K, dist=dist, img_size=np.array(size))
 
-                st.success(f'Calibration complete — {len(objpoints)}/{len(files)} images used.')
+                st.success(f'Calibration complete - {len(objpoints)}/{len(files)} images used.')
                 m1, m2, m3 = st.columns(3)
                 m1.metric('RMS reprojection error', f'{rms:.4f} px')
                 m2.metric('Mean reprojection error', f'{err:.4f} px')
@@ -119,17 +125,17 @@ def render():
 
         K, dist = load_calib()
         if K is not None:
-            st.info(f'Saved calibration in use — fx={K[0,0]:.1f}, fy={K[1,1]:.1f}, '
+            st.info(f'Saved calibration in use - fx={K[0,0]:.1f}, fy={K[1,1]:.1f}, '
                     f'cx={K[0,2]:.1f}, cy={K[1,2]:.1f}')
 
 
     # -- step 2: measurement --
     with tab2:
-        st.header('Step 2 — Measure a Real-World Dimension')
+        st.header('Step 2 - Measure a Real-World Dimension')
         K, dist = load_calib()
 
         if K is None:
-            st.warning('Run Step 1 first — no calibration found.')
+            st.warning('Run Step 1 first - no calibration found.')
         else:
             st.latex(r'X=\frac{(u-c_x)\,Z}{f_x}\qquad Y=\frac{(v-c_y)\,Z}{f_y}'
                      r'\qquad D=\sqrt{(X_2-X_1)^2+(Y_2-Y_1)^2}')
@@ -199,11 +205,11 @@ def render():
 
     # -- step 3: validation --
     with tab3:
-        st.header('Step 3 — Validation over 20 Measurements')
+        st.header('Step 3 - Validation over 20 Measurements')
         K, dist = load_calib()
 
         if K is None:
-            st.warning('Run Step 1 first — no calibration found.')
+            st.warning('Run Step 1 first - no calibration found.')
         else:
             st.markdown('Upload your `measurements.csv`, or edit the table directly. '
                         'Columns: `id, Z_mm, u1, v1, u2, v2, gt_mm` where `gt_mm` is '
@@ -268,7 +274,7 @@ def render():
 
     # -- theory tab --
     with tab4:
-        st.header('Theory — Two-View Geometry')
+        st.header('Theory - Two-View Geometry')
         st.markdown('**Problem.** Camera 1 is static; camera 2 sits at a distance and '
                     'oblique orientation from it. Point **P=(X,Y,Z)** is in both FoVs. '
                     'Relate its image coordinates in the two cameras.')
@@ -276,7 +282,7 @@ def render():
         st.subheader('Assumptions')
         st.markdown("""
     1. Pinhole model, distortion removed by calibration.
-    2. Both cameras calibrated — `K1`, `K2` known (equal if the same phone is used).
+    2. Both cameras calibrated - `K1`, `K2` known (equal if the same phone is used).
     3. Rigid relative pose `(R, t)`: the oblique orientation is `R`, the offset is `t`.
     4. Camera 1's frame is taken as the world frame (free choice, no loss of generality).
     5. P has positive depth in both views.
@@ -288,8 +294,8 @@ def render():
         st.latex(r'\hat{x}_1 = K_1^{-1}\tilde{p}_1 \propto X_1 \qquad '
                  r'\hat{x}_2 = K_2^{-1}\tilde{p}_2 \propto X_2')
 
-        st.subheader('2. Coplanarity → epipolar constraint')
-        st.markdown('`X2`, `t` and `R·X1` are coplanar, so their scalar triple product vanishes:')
+        st.subheader('2. Coplanarity -> epipolar constraint')
+        st.markdown('`X2`, `t` and `R*X1` are coplanar, so their scalar triple product vanishes:')
         st.latex(r'X_2 \cdot (t \times R X_1) = 0 \;\Longrightarrow\; X_2^{T} [t]_\times R X_1 = 0')
         st.latex(r'E = [t]_\times R \quad\text{(essential matrix)}')
         st.markdown('Substituting the normalized coordinates gives the relationship in pixels:')
@@ -300,7 +306,7 @@ def render():
         st.markdown('The image of P in camera 2 must lie on the **epipolar line** '
                     r'$l_2 = F\tilde{p}_1$, and in camera 1 on $l_1 = F^{T}\tilde{p}_2$. '
                     'It is a *line*, not a point, because one image point fixes only the '
-                    '**direction** of the ray to P, not its depth — every point along that '
+                    '**direction** of the ray to P, not its depth - every point along that '
                     'ray projects to the same pixel in camera 1 but to different pixels in camera 2.')
 
         st.subheader('3. If the depth is known')
@@ -310,7 +316,7 @@ def render():
 
         st.subheader('4. Parameters and how they are obtained')
         st.table(pd.DataFrame({
-            'Symbol': ['K1, K2', 'R', 't', 'E = [t]×R', 'F = K2⁻ᵀEK1⁻¹', 'P = (X,Y,Z)'],
+            'Symbol': ['K1, K2', 'R', 't', 'E = [t]xR', 'F = K2⁻ᵀEK1⁻¹', 'P = (X,Y,Z)'],
             'Meaning': ['intrinsic matrices', 'relative rotation', 'relative translation',
                         'essential matrix', 'fundamental matrix', 'the 3D scene point'],
             'How determined': [
@@ -322,8 +328,8 @@ def render():
                 'cv2.triangulatePoints from both views']}))
 
         st.markdown("""
-    **If `R` and `t` are unknown:** match ≥8 correspondences (ORB/SIFT) →
-    `cv2.findFundamentalMat` → `E = K2ᵀ F K1` → `cv2.recoverPose(E, ...)` gives `R`
+    **If `R` and `t` are unknown:** match ≥8 correspondences (ORB/SIFT) ->
+    `cv2.findFundamentalMat` -> `E = K2ᵀ F K1` -> `cv2.recoverPose(E, ...)` gives `R`
     and a **unit** `t`. Absolute scale is unrecoverable from images alone
     (monocular scale ambiguity); one known physical length fixes it.
     """)

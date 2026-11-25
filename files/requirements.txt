@@ -1,7 +1,0 @@
-opencv-python-headless
-numpy
-pandas
-matplotlib
-streamlit
-streamlit-image-coordinates
-pillow

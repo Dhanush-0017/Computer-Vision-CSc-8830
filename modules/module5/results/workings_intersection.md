@@ -1,4 +1,4 @@
-### Worked example — intersection, frames 874 → 875, point (x, y) = (207, 324)
+### Worked example - intersection, frames 874 → 875, point (x, y) = (207, 324)
 
 The point is on a moving car.
 
@@ -24,7 +24,7 @@ Structure tensor (sums over the window):
 
 $$G = \begin{bmatrix}\sum I_x^2 & \sum I_xI_y\\ \sum I_xI_y & \sum I_y^2\end{bmatrix} = \begin{bmatrix}53307.8 & 6062.0 \\ 6062.0 & 56572.2\end{bmatrix},\qquad \lambda_{min} = 48662.1,\ \lambda_{max} = 61217.9$$
 
-Both eigenvalues are well above zero, so $G$ is invertible and the point is trackable (not an edge or a flat patch — the aperture problem does not apply here).
+Both eigenvalues are well above zero, so $G$ is invertible and the point is trackable (not an edge or a flat patch - the aperture problem does not apply here).
 
 Iterations: $e = I_1(\mathbf{x}) - I_2(\mathbf{x} + \mathbf{d})$ (with $I_2$ sampled by bilinear interpolation), $\mathbf{b} = \sum [I_x e,\ I_y e]^T$, $\Delta\mathbf{d} = G^{-1}\mathbf{b}$, $\mathbf{d} \leftarrow \mathbf{d} + \Delta\mathbf{d}$.
 

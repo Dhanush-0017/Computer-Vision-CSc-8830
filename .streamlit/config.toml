@@ -1,0 +1,11 @@
+# Colours for the web app. Dark blue as the main colour.
+[theme]
+base = "light"
+primaryColor = "#0039A6"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F2F5FA"
+textColor = "#1F2937"
+font = "sans serif"
+
+[client]
+toolbarMode = "minimal"

@@ -19,6 +19,7 @@ import cv2
 import numpy as np
 import streamlit as st
 
+
 from . import segment as S
 
 # --- metadata read by app.py to build the navigation ------------------------
@@ -27,6 +28,14 @@ TITLE = 'Human Boundary Detection'
 SUBTITLE = ('Classical (non-ML) outlines of people in RGB and thermal images, '
             'compared with SAM2, plus edges and regions via Fourier analysis.')
 STATUS = 'complete'
+
+# the main numbers, shown in a box at the top of the page
+RESULTS = [
+    ('RGB vs SAM2 (IoU)', '0.943', 'Dice 0.971, GrabCut'),
+    ('Thermal vs SAM2 (IoU)', '0.790', 'Dice 0.883, thermal threshold'),
+    ('Methods', 'classical only', 'no machine learning; SAM2 is only the reference'),
+]
+THUMBNAIL = 'results/compare_rgb.png'      # picture for the home page card
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, 'data')
@@ -60,7 +69,7 @@ def _pick(kind, key):
     sam = (sam > 0).astype(np.uint8)
     default = P[name]
     h, w = img.shape[:2]
-    st.markdown('**Box around the person** — the only input. SAM2 was given '
+    st.markdown('**Box around the person** - the only input. SAM2 was given '
                 'this same box.')
     c1, c2 = st.columns(2)
     k = key + '_' + name     # new image -> sliders reset to its box
@@ -96,7 +105,7 @@ def _show_result(img, box, mask, sam, zoom=False):
     c2.image(_rgb(view(S.draw_result(img, sam, box, color=MAGENTA))),
              caption='SAM2, same box', width='stretch')
     c3.image(_rgb(view(S.disagreement_image(mask, sam))),
-             caption='green: both · red: classical only · blue: SAM2 only',
+             caption='green: both, red: classical only, blue: SAM2 only',
              width='stretch')
     r = S.compare_masks(mask, sam)
     a, b = st.columns(2)
@@ -105,7 +114,7 @@ def _show_result(img, box, mask, sam, zoom=False):
 
 
 def _tab_rgb():
-    st.subheader('Q1 — Boundary of a person in an RGB image, no ML')
+    st.subheader('Q1 - Boundary of a person in an RGB image, no ML')
     st.markdown(
         '**GrabCut**, started from a box. It fits two colour models '
         '(person / background) to *this* image\'s pixels and finds the '
@@ -124,7 +133,7 @@ def _tab_rgb():
 
 
 def _tab_thermal():
-    st.subheader('Q2 — Boundary of a person in a thermal image, no ML')
+    st.subheader('Q2 - Boundary of a person in a thermal image, no ML')
     st.markdown(
         'In a thermal image brightness is roughly temperature, and a person '
         'is warmer than most of a night scene, so a **threshold** finds them. '
@@ -147,13 +156,11 @@ def _theory_text():
 
 
 def render():
-    st.title('Module 4 — ' + TITLE)
-    st.caption(SUBTITLE)
     st.markdown('**No deep learning or machine learning is used for the '
                 'classical results.** SAM2 is only the reference to compare '
                 'against; its masks were computed offline and are loaded '
                 'from files.')
-    t1, t2, t3 = st.tabs(['1 · RGB', '2 · Thermal', '3 · Theory'])
+    t1, t2, t3 = st.tabs(['1. RGB', '2. Thermal', '3. Theory'])
     with t1:
         _tab_rgb()
     with t2:

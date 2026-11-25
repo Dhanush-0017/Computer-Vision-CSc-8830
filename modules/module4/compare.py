@@ -5,7 +5,7 @@ compare.py -- compares the classical results with SAM2 for Module 4.
 
 Runs GrabCut on the RGB image and the threshold method on the thermal image,
 compares each with SAM2's mask (IoU and Dice), and writes
-results_comparison.csv and figures/*.png (used in the PDF).
+results/results_comparison.csv and results/*.png (used in the PDF).
 
 Needs data/sam2_masks/ -- made once by sam2_reference.py.
 """
@@ -22,7 +22,7 @@ sys.path.insert(0, HERE)
 import segment as S                                          # noqa: E402
 
 DATA = os.path.join(HERE, 'data')
-FIG = os.path.join(HERE, 'figures')
+FIG = os.path.join(HERE, 'results')
 
 # (label, kind, function) -- the method used for each question
 METHODS = [
@@ -77,11 +77,11 @@ def main():
             cv2.imwrite(out, fig)
             print('  wrote', out)
 
-    with open(os.path.join(HERE, 'results_comparison.csv'), 'w', newline='') as f:
+    with open(os.path.join(FIG, 'results_comparison.csv'), 'w', newline='') as f:
         w = csv.DictWriter(f, fieldnames=['kind', 'image', 'method', 'iou', 'dice'])
         w.writeheader()
         w.writerows(rows)
-    print('wrote results_comparison.csv')
+    print('wrote results/results_comparison.csv')
 
     # the thermal method step by step
     name, box = list(P['thermal'].items())[0]

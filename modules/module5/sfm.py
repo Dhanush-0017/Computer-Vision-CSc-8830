@@ -609,10 +609,10 @@ def M(a, nd=4):
 def write_workings(c):
     K, NG = c['K'], c['NG']
     L = []
-    L.append('## Part B — worked calculation (numbers from this run of `sfm.py`)\n')
-    L.append('### Step 0 — camera parameters\n')
+    L.append('## Part B - worked calculation (numbers from this run of `sfm.py`)\n')
+    L.append('### Step 0 - camera parameters\n')
     L.append('Intrinsics from the Module 2 calibration (same phone, same main '
-             'camera, full 3024×4032 resolution):\n\n$$K = %s$$\n' % M(K, 2))
+             'camera, full 3024x4032 resolution):\n\n$$K = %s$$\n' % M(K, 2))
     L.append('Distortion $(k_1, k_2, p_1, p_2, k_3)$ = (%s). Every detected '
              'pixel is undistorted and converted to normalised coordinates '
              '$\\mathbf{m} = K^{-1}\\mathbf{x}$ first, so from here on the '
@@ -620,16 +620,16 @@ def write_workings(c):
              % ', '.join('%.4f' % v for v in c['dist'].ravel()))
     p = to_pixels(c['ms'][0][:1], K)[0]
     L.append('Example, feature point 0 in view 1: undistorted pixel '
-             '$(%.2f, %.2f)$ → $\\mathbf{m} = ((%.2f-%.2f)/%.2f,\\ (%.2f-%.2f)/%.2f) '
+             '$(%.2f, %.2f)$ -> $\\mathbf{m} = ((%.2f-%.2f)/%.2f,\\ (%.2f-%.2f)/%.2f) '
              '= (%.5f, %.5f)$.\n'
              % (p[0], p[1], p[0], K[0, 2], K[0, 0], p[1], K[1, 2], K[1, 1],
                 c['ms'][0][0, 0], c['ms'][0][0, 1]))
 
-    L.append('### Step 1 — homography view 1 → view 2 (DLT)\n')
+    L.append('### Step 1 - homography view 1 -> view 2 (DLT)\n')
     H, Hn = c['Hs'][0]
     S = c['dlt_S'][0]
-    L.append('%d feature correspondences give a %d×9 matrix $A$. Its two smallest '
-             'singular values are %.2e and %.2e — the smallest is far below the '
+    L.append('%d feature correspondences give a %dx9 matrix $A$. Its two smallest '
+             'singular values are %.2e and %.2e - the smallest is far below the '
              'next, so the points are related by a single homography (they lie on a '
              'plane). $\\mathbf{h}$ = the singular vector of the smallest:\n'
              % (NG, 2 * NG, S[-2], S[-1]))
@@ -640,7 +640,7 @@ def write_workings(c):
              % ', '.join('%.5f' % v for v in sv))
     L.append('$$\\hat H_{12} = %s$$\n' % M(Hn, 5))
 
-    L.append('### Step 2 — decomposition into $R, \\mathbf{t}, \\mathbf{n}$\n')
+    L.append('### Step 2 - decomposition into $R, \\mathbf{t}, \\mathbf{n}$\n')
     L.append('From $\\hat H^T\\hat H$: $\\sigma_1 = %.5f$, $\\sigma_2 = %.5f$, '
              '$\\sigma_3 = %.5f$. The formulas in theory.md B4 give 4 solutions '
              '(checked against `cv2.decomposeHomographyMat`: largest difference '
@@ -654,7 +654,7 @@ def write_workings(c):
     L.append('|---|---|---|---|')
     for i, cand in enumerate(c['cands']):
         for k, (R, t, n) in enumerate(cand):
-            L.append('| 1→%d | %d | (%.3f, %.3f, %.3f) | (%.3f, %.3f, %.3f) |'
+            L.append('| 1->%d | %d | (%.3f, %.3f, %.3f) | (%.3f, %.3f, %.3f) |'
                      % (i + 2, k + 1, *n, *t))
     L.append('')
     L.append('The plane is the same physical plane in all three pairs, so its '
@@ -667,7 +667,7 @@ def write_workings(c):
                  '\\mathbf{n} = %s$$\n' % (i + 2, M(R, 4), i + 2, M(t.reshape(3, 1), 4),
                                          M(n.reshape(3, 1), 4)))
 
-    L.append('### Step 3 — triangulation of one boundary point\n')
+    L.append('### Step 3 - triangulation of one boundary point\n')
     j = NG            # panel top-left
     X, A, S = triangulate(c['Ps'], [m[j] for m in c['ms']])
     L.append('Panel corner TL. Normalised coordinates in the 4 views: %s. '
@@ -683,13 +683,13 @@ def write_workings(c):
              % (', '.join('%.2e' % v for v in S), X[0], X[1], X[2]))
     L.append('The %d feature points triangulated this way (from the homography '
              'cameras): RMS reprojection error **%.2f px**. After the refinement '
-             '(re-estimate cameras 2–4 from the points, re-triangulate, 20 '
+             '(re-estimate cameras 2-4 from the points, re-triangulate, 20 '
              'rounds): **%.2f px**. The 4 panel corners are then triangulated '
              'from the refined cameras: **%.2f px** RMS (they come from fitted '
              'edge lines, so they are located less precisely than the feature '
              'points).\n' % (NG, c['rms0'], c['rms1'], c['rms_b']))
 
-    L.append('### Step 4 — scale and the object frame\n')
+    L.append('### Step 4 - scale and the object frame\n')
     L.append('SfM gives shape only up to scale. One length fixes it: the top '
              'edge of the panel (TL to TR) is %.1f mm (measured). In the '
              'reconstruction it is %.5f units long, so '
@@ -708,11 +708,11 @@ def write_workings(c):
              'BR (%.1f, %.1f), BL (%.1f, %.1f). Out of plane: all within %.2f mm.\n'
              % (*xy[0, :2], *xy[1, :2], *xy[2, :2], *xy[3, :2],
                 np.abs(xy[:, 2]).max()))
-    L.append('Width = |TR − TL| = %.1f mm (set by the scale), height = |BL − TL| '
+    L.append('Width = |TR - TL| = %.1f mm (set by the scale), height = |BL - TL| '
              '= %.1f mm against %.1f mm measured; corner angles %s.\n'
              % (s['width_top_mm'], s['height_left_mm'], c['height_mm'],
                 ', '.join('%.1f°' % a for a in s['corner_angles_deg'])))
-    L.append('### Step 5 — camera positions\n')
+    L.append('### Step 5 - camera positions\n')
     L.append('Camera centre $\\mathbf{C}_i = -R_{1i}^T\\mathbf{t}_{1i}$, converted to '
              'the object frame and mm:\n')
     L.append('| view | image | C (mm) | distance to object (mm) | rotation vs view 1 |')

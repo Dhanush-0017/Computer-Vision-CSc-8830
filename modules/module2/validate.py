@@ -13,7 +13,7 @@ measurements.csv columns:
         gt_mm : the true length between them, also tape measured
 
 Prints MAE, RMSE, MAPE, mean/std of the signed error, and max error, and
-writes validation_results.csv. --plot also saves a measured-vs-ground-truth
+writes results/validation_results.csv. --plot also saves a measured-vs-ground-truth
 scatter and an error-vs-distance plot, mostly because "error grows with
 distance" is easier to show than to explain in text.
 
@@ -22,9 +22,13 @@ Run:
                        --csv data/measurements.csv --plot
 """
 import argparse
+import os
 import numpy as np
 import pandas as pd
 from measure import load_calib, measure
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+RESULTS = os.path.join(HERE, 'results')
 
 
 def main():
@@ -65,8 +69,9 @@ def main():
     for k, v in stats.items():
         print(f'{k:24s}: {v:.3f}' if isinstance(v, float) else f'{k:24s}: {v}')
 
-    df.to_csv('validation_results.csv', index=False)
-    print('\nSaved validation_results.csv')
+    os.makedirs(RESULTS, exist_ok=True)
+    df.to_csv(os.path.join(RESULTS, 'validation_results.csv'), index=False)
+    print('\nSaved results/validation_results.csv')
 
     if args.plot:
         import matplotlib
@@ -83,8 +88,8 @@ def main():
         plt.legend()
         plt.grid(True)
         plt.tight_layout()
-        plt.savefig('validation_plot.png', dpi=150)
-        print('Saved validation_plot.png')
+        plt.savefig(os.path.join(RESULTS, 'validation_plot.png'), dpi=150)
+        print('Saved results/validation_plot.png')
 
 
 if __name__ == '__main__':

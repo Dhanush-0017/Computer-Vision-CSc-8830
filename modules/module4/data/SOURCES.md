@@ -1,6 +1,6 @@
 # Where the Module 4 images come from
 
-## RGB — Penn-Fudan Pedestrian Database
+## RGB - Penn-Fudan Pedestrian Database
 
 `rgb/*.png` is one image from the Penn-Fudan Pedestrian Database (170
 images of pedestrians, photographed around the University of Pennsylvania
@@ -20,11 +20,11 @@ both assume that).
 |---|---|
 | FudanPed00013 | one pedestrian, full body, plain background |
 
-## Thermal — RoadScene (FLIR ADAS frames)
+## Thermal - RoadScene (FLIR ADAS frames)
 
 `thermal/*.png` is one infrared frame from RoadScene, which is 221 aligned
 infrared/visible pairs taken from the FLIR ADAS driving dataset (FLIR Tau2
-thermal camera, 640×512).
+thermal camera, 640x512).
 
 > Han Xu, Jiayi Ma, Zhuliang Le, Junjun Jiang, Xiaojie Guo. *FusionDN: A
 > Unified Densely Connected Network for Image Fusion.* AAAI 2020.

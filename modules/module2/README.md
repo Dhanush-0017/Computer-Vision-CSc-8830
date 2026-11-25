@@ -1,111 +1,114 @@
-# Module 2 — Object Dimension Measurement
+# Module 2: Object Dimension Measurement
 
-CSc 8830, Computer Vision. Dhanush Nagarajan.
+Measure the real-world size of an object from a single smartphone photo, using
+camera calibration and the pinhole camera model.
 
-Take one photo with my phone and get a real-world measurement in millimetres out
-of it, using camera calibration plus the pinhole projection equations run
-backwards.
+## Overview
 
-## What the assignment asked for
-
-1. Calibrate a camera using OpenCV, with a smartphone camera.
-2. Write a script that finds the real-world 2D size of an object using
-   perspective projection.
-3. Validate it over 20 measurements taken more than 2 metres away, and report
-   error statistics.
-4. Theory: derive how a 3D point's image coordinates relate between two cameras
-   that are at different positions and angles.
-
-## What's in this folder
-
-| File | What it does |
+| Part | What it does |
 |---|---|
-| `__init__.py` | The Module 2 page in the web app — four tabs, one per part of the assignment |
-| `common.py` | The maths. Calibration load/save and the pinhole projection, shared by the page and the scripts |
-| `calibrate.py` | Step 1 as a command line script |
-| `measure.py` | Step 2 as a command line script |
-| `validate.py` | Step 3 as a command line script |
-| `selftest.py` | Runs the pipeline on generated images with a known camera, to check the code before using real photos |
-| `theory.md` | The two-camera derivation, for the PDF |
-| `data/calibration_images/` | 18 chessboard photos |
-| `data/measurement_images/` | The 4 photos used for validation |
-| `data/measurements.csv` | The 20 validation rows |
-| `calibration/camera_params.npz` | K and the distortion coefficients, written by step 1 |
-| `validation_plot.png`, `validation_results.csv` | Output from `validate.py --plot` |
+| Calibration | Recovers the camera matrix K and lens distortion from chessboard photos |
+| Measurement | Converts two clicked pixels into a distance in millimetres |
+| Validation | 20 measurements of a known object from more than 2 m away, with error statistics |
+| Theory | Derivation of how one 3D point appears in two cameras (epipolar geometry) |
 
-## Running it
+## Approach
 
-The web app is the main thing — from the repo root:
+### 1. Camera calibration
 
-```
-streamlit run app.py
-```
+18 photos of a printed 9 x 6 chessboard (30 mm squares) taken with an iPhone.
+OpenCV finds the inner corners in each photo, and `cv2.calibrateCamera` solves
+for the intrinsic matrix K and the distortion coefficients.
 
-Module 2 is in the sidebar. The scripts below assume `cd modules/module2` first.
+### 2. Measurement with the pinhole model
 
-### Step 1 — calibration
-
-```
-python calibrate.py --images data/calibration_images --rows 6 --cols 9 --square 30.0
-```
-
-`--rows` and `--cols` are inner corners, not squares. A printed board of 10 by 7
-squares has 9 by 6 inner corners.
-
-I was aiming for reprojection error under 0.5 px. It took a few tries — my first
-set of photos was of a chessboard on a monitor rather than a printed one, and
-photographing a screen creates a moire pattern that stops the corner detection
-working. A couple of other shots had the board too small in the frame.
-
-**Result: 18 out of 18 images used, 0.3920 px RMS reprojection error.**
-fx = 3023.59, fy = 3028.34, cx = 1532.54, cy = 1999.80
-
-### Step 2 — measurement
-
-```
-python measure.py --calib calibration/camera_params.npz --Z 2500 --image data/obj.jpg
-```
-
-Give it the distance Z to the object, click the two endpoints, and it converts
-the pixel distance into millimetres:
+A pixel (u, v) at depth Z maps back to camera coordinates by inverting the
+projection equations. The two clicked points are undistorted first, then:
 
 ```
 X = (u - cx) * Z / fx
 Y = (v - cy) * Z / fy
-D = sqrt((X2-X1)^2 + (Y2-Y1)^2)
+D = sqrt((X2 - X1)^2 + (Y2 - Y1)^2)
 ```
 
-This only works properly if both points are about the same distance from the
-camera, so the face being measured has to be roughly facing the camera. If it's
-tilted, one Z can't describe both points and the estimate drifts.
+### 3. Validation
 
-### Step 3 — validation
+The test object is a MARTA Breeze card, which follows the ID-1 standard
+(85.60 x 53.98 mm), so the ground truth is exact. The card was photographed
+from 4 distances between 2.11 m and 2.54 m. In each photo the card's width
+gives the distance Z, and that Z is then used to measure the other four
+lengths (both heights and both diagonals). That gives 20 measurements that are
+independent of the length used to find Z.
+
+## Results
+
+| Metric | Value |
+|---|---|
+| Calibration images used | 18 / 18 |
+| Reprojection error | **0.392 px** RMS |
+| Focal length | fx = 3023.59, fy = 3028.34 px |
+| Principal point | cx = 1532.54, cy = 1999.80 px |
+| Validation measurements | 20, at 2.11 to 2.54 m |
+| Mean absolute error (MAE) | **1.64 mm** |
+| RMSE | 1.93 mm |
+| Mean absolute percentage error (MAPE) | **2.37%** |
+
+![Measured vs ground truth](results/validation_plot.png)
+
+## Project structure
 
 ```
+module2/
+├── __init__.py              web app page (4 tabs: calibration, measure, validation, theory)
+├── common.py                shared maths: calibration I/O, pinhole back-projection
+├── calibrate.py             CLI: calibrate from chessboard photos
+├── measure.py               CLI: measure an object in one photo
+├── validate.py              CLI: run the 20-measurement validation
+├── selftest.py              end-to-end test on synthetic images with a known camera
+├── theory.md                two-camera derivation
+├── calibration/
+│   └── camera_params.npz    K and distortion coefficients
+├── data/
+│   ├── calibration_images/  18 chessboard photos
+│   ├── measurement_images/  4 validation photos
+│   └── measurements.csv     the 20 validation measurements
+└── results/
+    ├── calibration_corners.jpg   detected chessboard corners (home page picture)
+    ├── validation_plot.png
+    └── validation_results.csv
+```
+
+## Usage
+
+Web app (from the repo root):
+
+```
+pip install -r requirements.txt
+streamlit run app.py
+```
+
+Command line (from `modules/module2`):
+
+```
+# calibrate (rows/cols are inner corners)
+python calibrate.py --images data/calibration_images --rows 6 --cols 9 --square 30.0
+
+# measure the distance between two pixels at a known distance Z (mm)
+# (add --image <photo> instead of --p1/--p2 to click the points yourself)
+python measure.py --calib calibration/camera_params.npz --Z 2125.1 --p1 984 2014 --p2 1108 2013
+
+# validation statistics and plot
 python validate.py --calib calibration/camera_params.npz --csv data/measurements.csv --plot
 ```
 
-I used a MARTA Breeze card, which is a standard ID-1 size, 85.60 by 53.98 mm, so
-I have exact ground truth without measuring the card myself. It's taped to a wall
-and photographed from 4 distances. From each photo I took 5 measurements — the
-width, both height edges and both diagonals — which gives 20 data points.
-
-I didn't have a tape measure for the distance, so I used the card's known width to
-solve for Z instead, then used that Z to predict the other four measurements per
-photo. Those four weren't used to work out Z, so checking them against ground
-truth is still a fair test. The distances came out between 2.11 and 2.54 m, so the
-over-2-metre requirement is met.
-
-**Result: MAE 1.64 mm, RMSE 1.93 mm, MAPE 2.37%, over 20 measurements.**
-
-Width measurements came out more accurate than height and diagonal ones, and
-always in the same direction. I checked it wasn't a bug in my corner detection by
-rewriting that part and getting the same pattern. I think it's because the card
-sits well off to one side of the frame rather than near the centre, and the
-distortion correction isn't equally good on both axes out there — probably made
-worse by the phone not being perfectly square to the wall.
-
 ## Theory
 
-`theory.md` has the derivation: two cameras looking at the same 3D point, ending
-at the epipolar constraint and the fundamental matrix.
+`theory.md` derives the relationship between a 3D point's image coordinates in
+two cameras at different positions and orientations, ending with the epipolar
+constraint and the fundamental matrix.
+
+## References
+
+- Z. Zhang, "A flexible new technique for camera calibration", IEEE TPAMI, 2000.
+- R. Hartley and A. Zisserman, *Multiple View Geometry in Computer Vision*, 2nd ed., 2004.
+- OpenCV documentation: camera calibration (`calibrateCamera`, `undistortPoints`).

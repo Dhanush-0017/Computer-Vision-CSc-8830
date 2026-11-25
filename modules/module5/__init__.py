@@ -22,6 +22,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
+
 from . import flow as F
 
 # --- metadata read by app.py to build the navigation ------------------------
@@ -31,6 +32,15 @@ SUBTITLE = ('Modules 5 & 6: dense optical flow on two videos, Lucas-Kanade '
             'tracking derived and checked against real pixel positions, and '
             'structure from motion of a notebook from four photos.')
 STATUS = 'complete'
+
+# the main numbers, shown in a box at the top of the page
+RESULTS = [
+    ('Tracking error', '0.08 px', 'median |predicted - actual|, cars moving 11 px'),
+    ('3D reprojection error', '0.81 px', 'RMS, structure from motion from 4 photos'),
+    ('Notebook size from 3D', '170 x 232 mm', 'ruler: 170 x 230 mm'),
+]
+THUMBNAIL = 'results/sample_intersection.png'      # picture for the home page card
+LABEL = 'Modules 5 & 6'      # one combined assignment
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, 'data')
@@ -173,14 +183,14 @@ def _tab_flow():
                  caption='frame %d, t = %.2f s: object motion (camera motion '
                  'removed)' % (i, i / fps), width='stretch')
         c2.image(_rgb(F.flow_to_color(fl, clip['max_mag'])),
-                 caption='optical flow %d → %d' % (i, i + 1), width='stretch')
+                 caption='optical flow %d -> %d' % (i, i + 1), width='stretch')
         a, b, c, d = st.columns(4)
         a.metric('camera motion', '%.2f px/frame' % s['camera_speed'])
         b.metric('moving pixels', '%.1f %%' % (100 * s['moving_fraction']))
         c.metric('speed of moving pixels', '%.1f px/frame' % s['moving_mean_speed'])
         d.metric('moving regions', s['moving_blobs'])
 
-    st.markdown('#### What can be inferred from optical flow — with evidence')
+    st.markdown('#### What can be inferred from optical flow - with evidence')
     ev = os.path.join(RES, 'evidence_%s.png' % name)
     if os.path.exists(ev):
         st.image(ev, width='stretch')
@@ -190,7 +200,7 @@ def _tab_flow():
         return
     db = sm['depth_bins']
     lines = [
-        '1. **What is moving — segmentation with no model of a car.** After '
+        '1. **What is moving - segmentation with no model of a car.** After '
         'removing the camera motion, pixels faster than %.1f px/frame outline '
         'the moving vehicles (plot a, red). Something is moving in %.0f %% of '
         'the frames, up to %d separate moving regions at once.'
@@ -201,7 +211,7 @@ def _tab_flow():
         lines.append(
             '2. **How the camera moved.** The background flow says the hand-held '
             'phone moved only %.2f px/frame (median; %.2f at the 95th '
-            'percentile) — hand shake, not a pan. After subtracting it the '
+            'percentile) - hand shake, not a pan. After subtracting it the '
             'background is left at %.2f px/frame (plot b, orange vs green).'
             % (sm['camera_speed_median'], sm['camera_speed_p95'],
                sm['residual_background_median']))
@@ -209,7 +219,7 @@ def _tab_flow():
         desc = []
         for t0, t1, dx, peak in segs:
             # scene content moving right in the image = camera turning left
-            desc.append('%.0f–%.0f s turning **%s** (picture slides %s, up to '
+            desc.append('%.0f-%.0f s turning **%s** (picture slides %s, up to '
                         '%.1f px/frame)' % (t0, t1, 'left' if dx > 0 else 'right',
                                             'right' if dx > 0 else 'left', peak))
         still = df[df.camera_speed <= 1.0]
@@ -226,22 +236,22 @@ def _tab_flow():
         '3. **Direction of travel.** Plot c is the direction histogram of '
         'all moving pixels. %s'
         % ('Traffic goes both ways: %.0f %% of the moving pixels move left and '
-           '%.0f %% right — the two directions of the road.' % (100 * lr, 100 * (1 - lr))
+           '%.0f %% right - the two directions of the road.' % (100 * lr, 100 * (1 - lr))
            if 0.25 < lr < 0.75 else
            'Nearly all of it is **%s** (%.0f %%).'
            % ('left' if lr > 0.5 else 'right', 100 * max(lr, 1 - lr))),
         '4. **Distance.** The same road speed gives a larger image speed '
         'nearer the camera ($u \\propto 1/Z$). Plot d puts each moving region '
         'at the y where it meets the road (lower = nearer): vehicles meeting '
-        'the road around y ≈ %d px move %.1f px/frame (median), those around '
-        'y ≈ %d px, the nearest lane, %.1f px/frame.'
+        'the road around y ~ %d px move %.1f px/frame (median), those around '
+        'y ~ %d px, the nearest lane, %.1f px/frame.'
         % (db[0][0], db[0][1], db[-1][0], db[-1][1]),
         '5. **How fast.** Moving pixels travel on average %.1f px/frame '
         '(%.0f px/s at %.0f fps), up to %.0f px/frame for the nearest cars.'
         % (sm['moving_speed_px'], sm['moving_speed_px'] * sm['fps'], sm['fps'],
            sm['moving_speed_max']),
         '6. **Where flow cannot be measured.** On flat patches (sky, plain '
-        'road) there is no gradient, so flow reads ~0 whatever moved — the '
+        'road) there is no gradient, so flow reads ~0 whatever moved - the '
         'aperture problem. While panning that would look like motion against '
         'the camera, so only pixels near texture are allowed to count as '
         'moving (`flow.textured`).',
@@ -282,14 +292,14 @@ def _track_live(name, i):
 
 
 def _tab_tracking():
-    st.subheader('A. Tracking between two consecutive frames — theory vs actual')
+    st.subheader('A. Tracking between two consecutive frames - theory vs actual')
     st.markdown(
-        '**Predicted:** my Lucas–Kanade (`flow.lk_track`) solves '
+        '**Predicted:** my Lucas-Kanade (`flow.lk_track`) solves '
         '$G\\,\\mathbf d = \\mathbf b$ from the derivation (in the report), iterating '
         'with bilinear interpolation, on a 4-level pyramid (cars move up to '
         '~25 px per frame).  \n'
         '**Actual:** where the pixel really went, measured *without* any flow '
-        'equation — normalised cross-correlation of the 21×21 patch around '
+        'equation - normalised cross-correlation of the 21x21 patch around '
         'the point, peak refined to sub-pixel.')
     name = _pick_clip('m5_trk_clip')
     s = _json('tracking_summary_%s.json' % name)
@@ -297,13 +307,13 @@ def _tab_tracking():
     if s is None or df is None:
         st.warning('Run `python validate_tracking.py` first.')
         return
-    st.markdown('**Frames %d → %d** (a frame with a typical amount of motion).'
+    st.markdown('**Frames %d -> %d** (a frame with a typical amount of motion).'
                 % (s['frame'], s['frame'] + 1))
     st.image(os.path.join(RES, 'tracking_%s.png' % name), width='stretch')
     a, b, c, d = st.columns(4)
     a.metric('reliable points', '%d of %d (median shift %.0f px)'
              % (s['reliable'], s['points'], s['median_moved_px']))
-    b.metric('median |predicted − actual|', '%.2f px' % s['median_err_vs_actual'])
+    b.metric('median |predicted - actual|', '%.2f px' % s['median_err_vs_actual'])
     c.metric('90th percentile', '%.2f px' % s['p90_err_vs_actual'])
     d.metric('median vs OpenCV LK', '%.3f px' % s['median_err_vs_opencv'])
     st.caption('"Reliable" = the correlation peak is ≥ 0.9, i.e. the patch '
@@ -324,7 +334,7 @@ def _tab_tracking():
                  hide_index=True, width='stretch')
     wk = os.path.join(RES, 'workings_%s.md' % name)
     if os.path.exists(wk):
-        with st.expander('One point worked through by hand — every number'):
+        with st.expander('One point worked through by hand - every number'):
             st.markdown(_text(wk))
 
     with st.expander('Try another frame pair (computed live)'):
@@ -345,7 +355,7 @@ def _tab_tracking():
 # Tab 3: structure from motion
 # ----------------------------------------------------------------------------
 def _tab_sfm():
-    st.subheader('B. Structure from motion — four views of a flat object')
+    st.subheader('B. Structure from motion - four views of a flat object')
     st.markdown(
         'The object is my **spiral notebook** (the "NEVER STOP" cover), lying '
         'flat on a library table. I photographed it from four positions with the '
@@ -368,7 +378,7 @@ def _tab_sfm():
     K = np.array(cj['K_full_resolution'])
     c1, c2 = st.columns([1, 1])
     c1.markdown('Intrinsics $K$ (Module 2 calibration of the same iPhone 13, '
-                'main camera, 3024×4032 photos):')
+                'main camera, 3024x4032 photos):')
     c1.latex(r'K=\begin{bmatrix}%.1f&0&%.1f\\0&%.1f&%.1f\\0&0&1\end{bmatrix}'
              % (K[0, 0], K[0, 2], K[1, 1], K[1, 2]))
     c2.markdown('Distortion $(k_1, k_2, p_1, p_2, k_3)$:')
@@ -410,7 +420,7 @@ def _tab_sfm():
              '%.3f' % s['aspect'])
     d.metric('corner angles', ', '.join('%.1f°' % v for v in s['corner_angles_deg']))
     st.markdown(
-        'Estimated boundary: **%.0f × %.0f mm**, corners within %.1f° of 90°, '
+        'Estimated boundary: **%.0f x %.0f mm**, corners within %.1f° of 90°, '
         'all four corners within %.1f mm of the plane of the feature points. Only '
         'the width (%.0f mm) was given; the height comes out %.0f mm against '
         '%.0f mm measured. (The measured diagonal, %.0f mm, is a little short: '
@@ -431,10 +441,8 @@ def _tab_sfm():
 
 
 def render():
-    st.title('Modules 5 & 6 — ' + TITLE)
-    st.caption(SUBTITLE)
-    t1, t2, t3 = st.tabs(['1 · Optical flow', '2 · Tracking check',
-                          '3 · Structure from motion'])
+    t1, t2, t3 = st.tabs(['1. Optical flow', '2. Tracking check',
+                          '3. Structure from motion'])
     with t1:
         _tab_flow()
     with t2:

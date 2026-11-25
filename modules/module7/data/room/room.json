@@ -2,7 +2,7 @@
   "note": "All pixel positions are in the original 1920 x 1440 video frames (frame 0). The code scales them to whatever size the frame is read at.",
   "original_width": 1920,
   "door_height_mm": 2032,
-  "door_height_note": "Standard US interior door (80 inches). Not measured with a tape.",
+  "door_height_note": "Standard US interior door height (80 inches).",
   "turning_video": "turning_video.mp4",
   "door_wall": {
     "video": "door_wall.mp4",

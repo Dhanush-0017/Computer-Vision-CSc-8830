@@ -1,112 +1,143 @@
-# Modules 5 & 6 — Optical Flow & Structure from Motion
+# Modules 5 & 6: Optical Flow and Structure from Motion
 
-CSc 8830, Computer Vision. Dhanush Nagarajan. (Assignment 6, which combines
-Modules 5 and 6.)
+Dense optical flow and Lucas-Kanade tracking on two road videos, and a 3D
+reconstruction of a flat object from four photos.
 
-## What the assignment asked for
+## Overview
 
-Take 2 videos, at least 30 s each with motion. For each:
-
-- **A.** Compute optical flow and show it as a video. Explain what can be
-  inferred from it, with evidence. Derive the motion tracking equations from
-  first principles and set up tracking for two frames. Derive bilinear
-  interpolation. Take two consecutive frames from each video and check the
-  theoretical tracking result against the actual pixel locations.
-- **B.** Structure from motion from four views of an object (flat, for
-  simplicity). Reconstruct its points so its boundary can be estimated, show
-  the maths, and give the images, camera positions and camera parameters.
-
-## What's in this folder
-
-| File | What it does |
+| Part | What it does |
 |---|---|
-| `__init__.py` | The page in the web app (4 tabs) |
-| `flow.py` | Part A maths: Farneback flow, flow colouring, camera motion (homography + RANSAC), **my Lucas–Kanade** (pyramid + iterations), **bilinear interpolation**, correlation-based "actual" position |
-| `make_flow_videos.py` | Part A: flow video, camera-motion removal and evidence plots for each clip |
-| `validate_tracking.py` | Part A: predicted vs actual positions on two consecutive frames, and one point worked through by hand |
-| `sfm.py` | Part B: SIFT matching + panel corners → DLT homography → R, t, n (by hand) → triangulation → refinement → scale → boundary |
-| `theory.md` | All the derivations (A: flow constraint, LK tracking, bilinear; B: plane homography, decomposition, triangulation) |
-| `data/videos/` | The two 30 s clips (my own recordings) |
-| `data/clips.json` | Where the clips come from, licence, thresholds |
-| `data/sfm/` | The 4 notebook photos used for SfM (my own, iPhone 13), and `camera.json` (K and distortion from Module 2) |
-| `results/` | Everything the scripts write (videos, plots, CSVs, worked calculations) |
+| A. Optical flow | Flow videos for two 30 s clips, camera motion removal, analysis of what is moving |
+| A. Tracking | Lucas-Kanade tracking and bilinear interpolation implemented from first principles, checked against real pixel positions |
+| B. Structure from motion | Reconstructs a notebook from 4 photos and recovers its boundary, camera positions and camera parameters |
 
-## Running it
+## Part A: Optical flow and tracking
 
-Web app, from the repo root: `streamlit run app.py`, then Module 5 in the sidebar.
+### Data
 
-Scripts, from this folder:
+Two 30 s clips recorded hand-held on an iPhone at a road intersection,
+converted from HDR to SDR at 960 x 540, 30 fps.
 
-```
-cd modules/module5
-python make_flow_videos.py     # A: results/flow_*.mp4, evidence_*.png, stats_*.csv  (~2.5 min)
-python validate_tracking.py    # A: results/tracking_*.csv/.png, workings_*.md
-python sfm.py --width-mm 170 --height-mm 230 --diag-mm 280
-                               # B: results/sfm_*.csv/.png/.json, workings_sfm.md
-```
+- **Video 1:** cars crossing in both directions, camera held still
+- **Video 2:** camera held still, then panned left and right across the scene
 
-`make_flow_videos.py` uses `ffmpeg` (if installed) to make the videos play in
-a browser.
+### Approach
 
-## Part A — results
+1. **Dense flow:** Farneback optical flow for every frame pair, colour-coded
+   by direction and speed and written out as a video.
+2. **Camera motion:** a homography fitted with RANSAC to corners across each
+   frame gives the hand-held camera's own motion, which is subtracted so that
+   only real scene motion remains.
+3. **Tracking:** my own pyramidal, iterative Lucas-Kanade tracker
+   (`flow.py`), derived from the brightness constancy constraint, with bilinear
+   interpolation for sub-pixel sampling.
+4. **Check:** on two consecutive frames, the tracker's predicted positions are
+   compared with the actual positions found by correlation, and one point is
+   worked through by hand (`results/workings_*.md`).
 
-Both videos are my own, recorded hand-held on my iPhone at a road intersection
-(`data/videos/`, cut from `IMG_1893.MOV` and `IMG_1895.MOV`, which stay on my
-machine and are git-ignored). **Video 1** (0–30 s): cars crossing both ways,
-phone held as still as I could. **Video 2** (5–35 s): held still at first,
-then I turn left and later right across the scene. Both were tone-mapped from
-HDR to SDR and scaled to 960×540 at 30 fps.
-
-Because the phone was hand-held, every frame's **camera motion** is measured
-too (`flow.camera_motion`: a homography fitted with RANSAC to corners across
-the frame) and subtracted before deciding what is moving.
-
-What the flow shows, over each whole clip (`evidence_*.png`):
+### Results: flow analysis
 
 | | Video 1 | Video 2 |
 |---|---|---|
-| camera motion | 0.10 px/frame median (hand shake) | 0.15 still, then turning left (10–20 s) and right (25–30 s), up to 7.4 px/frame |
-| background after removing it | 0.07 px/frame | 0.10 px/frame |
-| moving cars: speed | 10.8 px/frame average, up to 28 | 11.3 px/frame average, up to 26 |
-| direction | both ways (48 % left, 52 % right) | 91 % right |
-| image speed, far → near lane | 10 → 24 px/frame | 6 → 20 px/frame |
+| Camera motion | 0.10 px/frame median | 0.15 px/frame still, up to 7.4 px/frame while panning |
+| Background after removing camera motion | 0.07 px/frame | 0.10 px/frame |
+| Car speed in the image | 10.8 px/frame average, up to 28 | 11.3 px/frame average, up to 26 |
+| Direction of traffic | 48% left, 52% right | 91% right |
+| Image speed, far lane to near lane | 10 to 24 px/frame | 6 to 20 px/frame |
 
-Tracking check, two consecutive frames with a typical amount of motion
-(`validate_tracking.py`):
+### Results: tracking check
 
-| | Video 1 (frames 583→584) | Video 2 (frames 289→290) |
+| | Video 1 (frames 583 to 584) | Video 2 (frames 289 to 290) |
 |---|---|---|
-| points (reliable) | 38 (29) | 36 (26) |
-| how far the cars moved (median) | 10.8 px | 21.3 px |
-| median \|predicted − actual\| | **0.08 px** | **0.09 px** |
-| reliable points within 0.5 px | 26 of 29 | 22 of 26 |
-| median difference from OpenCV's LK | 0.003 px | 0.006 px |
+| Points tracked (reliable) | 38 (29) | 36 (26) |
+| Median motion | 10.8 px | 21.3 px |
+| Median \|predicted - actual\| | **0.08 px** | **0.09 px** |
+| Reliable points within 0.5 px | 26 / 29 | 22 / 26 |
+| Median difference from OpenCV's LK | 0.003 px | 0.006 px |
 
-The few points that disagree by several pixels sit on a car's outline, where
-the window holds both the moving car and the still road (two motions in one
-window, which LK's assumption doesn't allow).
+## Part B: Structure from motion
 
-## Part B — results
+### Data
 
-The object is my spiral notebook (the "NEVER STOP" cover) lying flat on a
-library table, photographed from 4 positions with the same iPhone 13 I
-calibrated in Module 2 (IMG_2005, 2009, 2012, 2016; two from almost straight
-above, two at about 45°, distances 0.45–0.96 m). SIFT points on the cover's
-artwork, matched in all four photos, give the correspondences. The 4 corners of
-the cover's purple panel are the boundary.
+A spiral notebook lying flat on a table, photographed from 4 positions (0.45 to
+0.96 m away, two from almost straight above and two at about 45 degrees) with
+the iPhone 13 calibrated in Module 2. The cover's purple panel is the object
+whose boundary is recovered.
 
-The panel was measured with the iPhone Measure app: 170 mm wide, 230 mm tall,
-280 mm diagonal. Only the width is used, to set the scale.
+### Approach
 
-| | |
+1. **Matching:** SIFT features on the cover artwork, matched across all four
+   photos.
+2. **Homographies:** a DLT homography between views of the flat cover.
+3. **Pose:** each homography is decomposed by hand into rotation R,
+   translation t and the plane normal n.
+4. **Triangulation and refinement:** the matched points are triangulated into
+   3D and then refined across all four views.
+5. **Scale:** the panel's measured width (170 mm) sets the real-world scale.
+6. **Boundary:** the 4 panel corners give the object's outline.
+
+### Results
+
+| Metric | Value |
 |---|---|
-| feature points matched in all 4 views | 92 |
-| reprojection error, feature points | **0.81 px** RMS (full-resolution photos) |
-| reprojection error, boundary corners | 4.2 px RMS |
-| flatness of the reconstructed points | 0.35 mm RMS off the plane |
-| estimated boundary | **170 × 232 mm** (height measured: 230 mm) |
-| corner angles | 90.7°, 89.3°, 90.2°, 89.9° |
-| width ÷ height | 0.732 (measured 0.739) |
+| Feature points matched in all 4 views | 92 |
+| Reprojection error, feature points | **0.81 px** RMS |
+| Reprojection error, boundary corners | 4.2 px RMS |
+| Flatness of the reconstruction | 0.35 mm RMS off the plane |
+| Recovered boundary | **170 x 232 mm** (measured: 170 x 230 mm) |
+| Corner angles | 90.7°, 89.3°, 90.2°, 89.9° |
+| Width / height ratio | 0.732 (measured: 0.739) |
+| Diagonal | 287 mm |
 
-The measured diagonal (280 mm) is a little short of what the measured width
-and height give (286 mm); the reconstruction gives 287 mm.
+![The four views](results/sfm_views.png)
+
+## Project structure
+
+```
+module5/
+├── __init__.py              web app page
+├── flow.py                  Part A maths: Farneback flow, camera motion, Lucas-Kanade, bilinear interpolation
+├── make_flow_videos.py      Part A: flow videos, camera motion removal, evidence plots
+├── validate_tracking.py     Part A: predicted vs actual positions, worked example
+├── sfm.py                   Part B: matching, homography, pose, triangulation, boundary
+├── theory.md                all derivations for Parts A and B
+├── data/
+│   ├── videos/              the two 30 s clips
+│   ├── clips.json           clip details and thresholds
+│   └── sfm/                 the 4 notebook photos and camera.json (K from Module 2)
+└── results/                 videos, plots, CSVs and worked calculations
+```
+
+## Usage
+
+Web app (from the repo root):
+
+```
+pip install -r requirements.txt
+streamlit run app.py
+```
+
+Command line (from `modules/module5`):
+
+```
+python make_flow_videos.py     # Part A: flow videos, evidence plots, stats (~2.5 min)
+python validate_tracking.py    # Part A: tracking check and worked example
+python sfm.py --width-mm 170 --height-mm 230 --diag-mm 280    # Part B
+```
+
+`make_flow_videos.py` uses `ffmpeg`, if installed, to encode the videos for
+the browser.
+
+## Theory
+
+`theory.md` covers the optical flow constraint, Lucas-Kanade tracking from
+first principles, bilinear interpolation, the plane-induced homography, its
+decomposition into R, t and n, and triangulation.
+
+## References
+
+- B. D. Lucas and T. Kanade, "An iterative image registration technique with an application to stereo vision", IJCAI, 1981.
+- G. Farnebäck, "Two-frame motion estimation based on polynomial expansion", SCIA, 2003.
+- J.-Y. Bouguet, "Pyramidal implementation of the Lucas Kanade feature tracker", Intel, 2000.
+- R. Hartley and A. Zisserman, *Multiple View Geometry in Computer Vision*, 2nd ed., 2004.
+- D. G. Lowe, "Distinctive image features from scale-invariant keypoints", IJCV, 2004.

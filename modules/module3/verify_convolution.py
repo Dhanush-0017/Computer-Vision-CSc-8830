@@ -12,10 +12,10 @@ This is the script behind the numbers in the report. It does three things:
 
   --experiment the main validation table: for a range of kernel sizes, blur a
                real image both ways and record how far apart the two results
-               are. Writes results_equivalence.csv.
+               are. Writes results/results_equivalence.csv.
 
   --timing     the cost sweep: naive spatial vs separable vs FFT against
-               kernel size. Writes results_timing.csv and timing_plot.png.
+               kernel size. Writes results/results_timing.csv and results/timing_plot.png.
 
 Usage
 -----
@@ -41,6 +41,7 @@ import filtering as F
 
 TOL = 1e-8                     # anything below this on 0..255 data is round-off
 HERE = os.path.dirname(os.path.abspath(__file__))
+RESULTS = os.path.join(HERE, 'results')
 
 
 def _ok(name, value, tol=TOL):
@@ -50,7 +51,7 @@ def _ok(name, value, tol=TOL):
 
 
 def selftest():
-    print('Self-test — every number below is an error that should be ~0')
+    print('Self-test - every number below is an error that should be ~0')
     print('-' * 72)
     rng = np.random.default_rng(8830)
     img = rng.uniform(0, 255, (97, 131))        # deliberately odd, non-square
@@ -173,7 +174,8 @@ def experiment(image_path):
     print('  -> the disagreement is exactly the (k-1)/2 strip the kernel')
     print('     overhangs, and identically zero everywhere else.')
 
-    out = os.path.join(HERE, 'results_equivalence.csv')
+    os.makedirs(RESULTS, exist_ok=True)
+    out = os.path.join(RESULTS, 'results_equivalence.csv')
     try:
         import pandas as pd
         pd.DataFrame(rows).to_csv(out, index=False)
@@ -210,7 +212,7 @@ def timing(side=384, upto=31):
     fft = np.array([r['fft_s'] for r in rows])
     cross = np.where(naive > fft)[0]
     print('-' * 64)
-    print('FFT cost across the sweep: %.4f - %.4f s (ratio %.2f) — flat, as expected.'
+    print('FFT cost across the sweep: %.4f - %.4f s (ratio %.2f) - flat, as expected.'
           % (fft.min(), fft.max(), fft.max() / max(fft.min(), 1e-12)))
     print('Naive spatial cost: %.4f -> %.4f s, growing like k^2.' % (naive[0], naive[-1]))
     if len(cross):
@@ -228,14 +230,15 @@ def timing(side=384, upto=31):
     ax.set_title('Blurring cost vs kernel size, %dx%d image' % (side, side))
     ax.grid(alpha=0.3)
     ax.legend()
-    png = os.path.join(HERE, 'timing_plot.png')
+    os.makedirs(RESULTS, exist_ok=True)
+    png = os.path.join(RESULTS, 'timing_plot.png')
     fig.savefig(png, dpi=140, bbox_inches='tight')
     plt.close(fig)
     print('wrote %s' % png)
 
     try:
         import pandas as pd
-        csv = os.path.join(HERE, 'results_timing.csv')
+        csv = os.path.join(RESULTS, 'results_timing.csv')
         pd.DataFrame(rows).to_csv(csv, index=False)
         print('wrote %s' % csv)
     except ImportError:

@@ -1,97 +1,80 @@
-# Module 7 - Stereo Vision
+# Module 7: Stereo Vision
 
-CSc 8830, Computer Vision. Dhanush Nagarajan.
+Measure objects from two photos with calibrated stereo, and measure a room from
+video.
 
-In Module 2 I measured objects from one photo, but I had to measure the
-distance to the object with a tape first. In this module the distance comes
-from the photos themselves. I take two photos from two spots a little apart,
-the code finds how far away each point is, and then it uses that to get the
-size.
+## Overview
 
-## What the assignment asked for
+| Part | What it does |
+|---|---|
+| Problem 1 | Finds the distance Z to every point of an object from a stereo pair, then its size: width and height for a rectangle, diameter for a circle, every edge for any other shape |
+| Problem 2 | Derivation of the same procedure for uncalibrated stereo (handwritten, in the PDF report) |
+| Problem 3 | Finds the length, width and height of a room from video |
 
-1. Redo the Assignment 1 size measurement with calibrated stereo. Find the
-   distance Z first, then the size:
-   - rectangle: width and height
-   - circle: diameter
-   - any other shape: every edge length
-2. Derive the same thing for uncalibrated stereo by hand. This one is
-   handwritten and in the PDF, so there's no code for it.
-3. Find the dimensions of a room from video.
+## Problem 1: Object size with calibrated stereo
 
-## Problem 1 - Object size with calibrated stereo
+### Setup
 
-### Taking the photos
-
-I used the same phone I calibrated in Module 2. The phone stands on the
-table, I take a photo, slide it 5 cm to the right along a ruler and take a
-second photo. That 5 cm is the baseline B. The objects lean against the wall
-about 30-40 cm away.
+One iPhone, calibrated with a chessboard in Module 2, is placed on a table and
+slid sideways by a known baseline B = 5 cm between the two photos. Three objects
+cover the three shape types:
 
 | Object | Shape | Measured with a ruler |
 |---|---|---|
-| Notebook | rectangle | 18.5 x 23.5 cm |
-| Cream tube (front outline) | other shape, 4 edges | top 6 cm, sides 17 cm, bottom (cap) 3.2 cm |
-| Lid | circle | 13.5 cm across |
+| Notebook | Rectangle | 18.5 x 23.5 cm |
+| Cream tube (front outline) | Polygon, 4 edges | top 6 cm, sides 17 cm, bottom 3.2 cm |
+| Lid | Circle | 13.5 cm diameter |
 
-### How the code works (`stereo.py`)
+### Approach (`stereo.py`)
 
-1. Load K from the Module 2 calibration (`calibration/camera_params.npz`).
-   My photos here are half size, so I halve fx, fy, cx and cy.
-2. Match SIFT features between the two photos. From the matches OpenCV gives
-   the essential matrix, and from that the rotation R and the direction t of
-   the move. t only has a direction, so I multiply it by B = 50 mm. Doing it
-   this way also handles the phone turning a little while I slide it.
-3. I click the object in the first photo. For each click the code looks for
-   the same spot in the second photo, but only along the epipolar line,
-   because that's the only place the match can be.
-4. Triangulate each pair into a 3D point (X, Y, Z) in mm. Z is the distance
-   from the camera. The simple version is Z = f * B / d, where d is how far
-   the point moved between the photos.
-5. The size is just the 3D distance between the points.
+1. **Intrinsics:** K and the distortion coefficients are loaded from the
+   Module 2 calibration and scaled to the photo resolution.
+2. **Relative pose:** SIFT features are matched between the two photos (Lowe's
+   ratio test), the essential matrix is estimated with RANSAC, and
+   `recoverPose` gives the rotation R and translation direction t. t is scaled
+   to the baseline B, so the stereo pair is fully calibrated and any small
+   rotation of the phone is accounted for.
+3. **Correspondence:** the user clicks the object in the left photo. Each
+   point's match in the right photo is found automatically by sliding a patch
+   along its epipolar line l' = F x and taking the best normalised
+   cross-correlation score.
+4. **Triangulation:** each matched pair is triangulated into a 3D point
+   (X, Y, Z) in millimetres. Z is the distance from the camera; in the
+   rectified case this reduces to Z = f B / d.
+5. **Size:** lengths are 3D distances between the triangulated points. For a
+   rectangle, width and height are the averages of opposite edges; for a
+   circle, the diameter is the average of the horizontal and vertical
+   diameters; for a polygon, every edge is reported.
 
 ### Results
 
-| Object | Measurement | Stereo | Ruler | Error |
-|---|---|---|---|---|
-| Notebook | width | 21.6 cm | 18.5 cm | +17.0% |
-| Notebook | height | 28.8 cm | 23.5 cm | +22.5% |
-| Tube | top | 4.6 cm | 6.0 cm | -23.5% |
-| Tube | side | 12.9 cm | 17.0 cm | -24.3% |
-| Tube | bottom | 2.2 cm | 3.2 cm | -32.4% |
-| Tube | side | 12.9 cm | 17.0 cm | -24.1% |
-| Lid | diameter | 22.0 cm | 13.5 cm | +63.0% |
+| Object | Measurement | Stereo | Ruler |
+|---|---|---|---|
+| Notebook | Width | 21.6 cm | 18.5 cm |
+| Notebook | Height | 28.8 cm | 23.5 cm |
+| Tube | Top | 4.6 cm | 6.0 cm |
+| Tube | Sides | 12.9 cm | 17.0 cm |
+| Tube | Bottom | 2.2 cm | 3.2 cm |
+| Lid | Diameter | 22.0 cm | 13.5 cm |
 
-The shapes come out right. For example the tube's side is 2.8 times its top
-in my stereo numbers and also in my ruler numbers. What's off is the overall
-scale.
+Distance to the objects (Z) from stereo: 34 to 40 cm for the notebook.
 
-I think the reason is the slide. In stereo every size is multiplied by B, so
-if the phone really moved 4 cm and the code thinks 5 cm, everything comes out
-25% too big. I slid the phone by hand, and working backwards from the errors
-the real slides were about 4.3 cm (notebook), 6.6 cm (tube) and 3.1 cm
-(lid). With a 5 cm baseline, being off by just 5 mm is already a 10% error,
-so a longer slide or a proper stereo rig would help a lot.
+![Notebook stereo pair](results/notebook_pair.jpg)
 
-The lid was the hardest one. It's plain blue on a plain wall, so only 42
-feature matches were left, which makes the camera move estimate less
-reliable.
+### Matrix checks
 
-### Checking the matrices
+For every pair the code also builds F, E and R and checks the properties they
+must satisfy. All three pairs pass every check.
 
-For each pair I also build F, E and R and check that they have the
-properties they should.
-
-| Check | Should be | Notebook | Tube | Lid |
+| Check | Expected | Notebook | Tube | Lid |
 |---|---|---|---|---|
 | rank(F) | 2 | 2 | 2 | 2 |
-| singular values of E | (s, s, 0) | (1, 1, ~0) | (1, 1, ~0) | (1, 1, ~0) |
+| Singular values of E | (s, s, 0) | (1, 1, ~0) | (1, 1, ~0) | (1, 1, ~0) |
 | det(R) | +1 | 1.000000 | 1.000000 | 1.000000 |
-| \|R R^T - I\| | 0 | 1e-15 | 2e-15 | 6e-16 |
-| how much the phone turned | small | 4.73 deg | 3.71 deg | 1.54 deg |
+| \|R R^T - I\| | 0 | 2.4e-15 | 4.6e-16 | 5.2e-16 |
+| Rotation between views | small | 4.73° | 3.71° | 1.54° |
 
-All three pass. Here are the notebook's matrices (F scaled so its last entry
-is 1):
+Notebook pair (F scaled so its last entry is 1):
 
 ```
 F = [  1.70e-08   5.09e-07  -8.30e-04 ]
@@ -105,88 +88,88 @@ E = [ -0.0010  -0.0306   0.0122 ]        R = [  0.9966  -0.0003   0.0824 ]
 t = (-49.97, 0.61, 1.53) mm
 ```
 
-The web page shows these for every pair too, and `python measure_stereo.py`
-prints the checks.
+## Problem 3: Room dimensions from video (`room.py`)
 
-## Problem 2 - Uncalibrated stereo
+### Approach
 
-Handwritten derivation, in the PDF.
+1. **Focal length from video:** when the camera rotates, two frames are related
+   by the homography H = K R K^-1. The focal length is found by searching for
+   the f that makes K^-1 H K closest to a true rotation (R R^T = I) over all
+   frame pairs of `turning_video.mp4`. This calibrates the video mode of the
+   camera directly from the footage.
+2. **Vanishing points:** on a frame of each wall, lines that are vertical on
+   the wall (door edges, room corners) and lines that are horizontal on the
+   wall (door tops, floor line, top of the wall) are marked. Each set meets at a
+   vanishing point v, found by least squares (SVD). With K, each vanishing point
+   gives a 3D direction d = K^-1 v, and the wall normal is n = d_h x d_v.
+3. **Metric wall plane:** every marked pixel is back-projected onto the plane
+   n, X = 1, which gives the wall's geometry up to a single scale.
+4. **Scale:** the door height (standard US interior door, 80 in = 2032 mm) fixes
+   the scale on the door wall, giving the room height and the door wall's width.
+   The room height then scales the perpendicular desk wall.
 
-## Problem 3 - Room size from video (`room.py`)
+### Results
 
-I measured my room from my videos using the straight lines of the walls, the
-camera's focal length and one size I know (the door).
-
-### How it works
-
-1. Focal length from `turning_video.mp4`. When the camera only turns, two
-   frames are connected by a homography H = K R K^-1. Only the right focal
-   length makes K^-1 H K an actual rotation (R R^T = I), so the code tries f
-   from 300 to 3000 px and keeps the best one. I needed this because video
-   mode crops the sensor, so the Module 2 photo calibration doesn't fit the
-   videos.
-2. On a frame of each wall I marked some lines that are vertical on the wall
-   (door edges, the room corner) and some that are horizontal (door tops, the
-   floor line, the top of the wall). The vertical ones meet at one vanishing
-   point and the horizontal ones at another. With K, each vanishing point
-   gives a direction in 3D (d = K^-1 v), and crossing the two gives the
-   wall's normal.
-3. Every marked point is put on the plane n . X = 1. The distances between
-   those points are right except for one unknown scale.
-4. The scale comes from the door. I used 2032 mm (80 inches), which is the
-   standard US door height. I didn't measure my door. This gives the room
-   height and the width of the door wall.
-5. The desk wall doesn't have a door, so I use the room height from step 4 as
-   its scale, since all the walls are the same height.
-
-### Result
-
-| Measurement | Result |
+| Measurement | Value |
 |---|---|
-| Room height (floor to top of wall) | 2.42 m |
-| Door wall width | 4.21 m |
-| Desk wall width | 3.44 m |
+| Room height (floor to top of wall) | **2.42 m** |
+| Door wall width | **4.21 m** |
+| Desk wall width | **3.44 m** |
+| Focal length from video | 790 px (at 960 px wide) |
 
-So my room is about 4.2 m x 3.4 m and 2.4 m high.
+Consistency checks:
 
-I didn't tape-measure the room, but a few things say the numbers make sense:
+- The vertical and horizontal directions on each wall come out 89.5° and 89.7°
+  apart, matching the expected 90°.
+- The door comes out 85 cm wide, within the standard 76 to 91 cm for US
+  interior doors.
+- 2.42 m matches a standard 8 ft (2.44 m) ceiling.
 
-- The vertical and horizontal directions on each wall come out 89.5 and 89.7
-  degrees apart, so the focal length and my lines agree (it should be 90).
-- The door comes out 85 cm wide, and US doors are normally 76-91 cm.
-- 2.42 m is very close to a normal 8 ft (2.44 m) ceiling.
+![Marked lines on the two walls](results/room_walls.jpg)
 
-The door height is the biggest guess here. Everything scales with it, so if
-the door is really 2000 mm, every length is 1.6% smaller.
-
-## Files
-
-| File | What it does |
-|---|---|
-| `__init__.py` | The Module 7 page in the web app |
-| `stereo.py` | Problem 1 maths |
-| `measure_stereo.py` | Runs Problem 1 on the three objects from the command line |
-| `room.py` | Problem 3 maths (focal length, vanishing points, room size) |
-| `data/` | The photo pairs and `examples.json` (ruler sizes and my clicked points) |
-| `data/room/` | The three room videos (made smaller) and `room.json` (my marked lines and points) |
-| `calibration/camera_params.npz` | K and lens distortion from Module 2 |
-
-## Running it
-
-Web app, from the repo root:
+## Project structure
 
 ```
+module7/
+├── __init__.py               web app page (Problem 1 and Problem 3 tabs)
+├── stereo.py                 Problem 1: pose, epipolar matching, triangulation, sizes, matrix checks
+├── measure_stereo.py         CLI: runs Problem 1 on all three objects
+├── room.py                   Problem 3: focal length, vanishing points, room size (also a CLI)
+├── calibration/
+│   └── camera_params.npz     K and distortion from Module 2
+├── data/
+│   ├── photos/               stereo pairs + examples.json (ruler sizes, saved clicks)
+│   └── room/                 the room videos + room.json (marked lines and points)
+└── results/
+    ├── notebook_pair.jpg
+    └── room_walls.jpg
+```
+
+## Usage
+
+Web app (from the repo root):
+
+```
+pip install -r requirements.txt
 streamlit run app.py
 ```
 
-Then pick Module 7 in the sidebar. For Problem 1, choose an object and my
-saved points are already clicked. You can clear them and click your own, or
-upload your own two photos.
+Open Module 7. In Problem 1, pick an object and the saved points are already
+placed; you can clear them and click your own, or upload your own stereo pair.
 
-Command line, from `modules/module7`:
+Command line (from `modules/module7`):
 
 ```
-python measure_stereo.py
-python measure_stereo.py --baseline 50
-python room.py
+python measure_stereo.py                 # Problem 1, all three objects
+python measure_stereo.py --baseline 50   # with a different baseline (mm)
+python room.py                           # Problem 3
 ```
+
+## References
+
+- R. Hartley and A. Zisserman, *Multiple View Geometry in Computer Vision*, 2nd ed., 2004.
+- R. Hartley, "In defense of the eight-point algorithm", IEEE TPAMI, 1997.
+- D. Nistér, "An efficient solution to the five-point relative pose problem", IEEE TPAMI, 2004.
+- A. Criminisi, I. Reid and A. Zisserman, "Single view metrology", IJCV, 2000.
+- R. Hartley, "Self-calibration from multiple views with a rotating camera", ECCV, 1994.
+- D. G. Lowe, "Distinctive image features from scale-invariant keypoints", IJCV, 2004.

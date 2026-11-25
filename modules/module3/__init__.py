@@ -23,6 +23,7 @@ import os
 
 import numpy as np
 import streamlit as st
+
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -35,6 +36,14 @@ TITLE = 'Blurring & the Convolution Theorem'
 SUBTITLE = ('Box and Gaussian blurring by explicit 2D convolution, shown to be '
             'identical to multiplying by the filter in the Fourier domain.')
 STATUS = 'complete'
+
+# the main numbers, shown in a box at the top of the page
+RESULTS = [
+    ('Spatial vs Fourier blur', '1.1e-12', 'max difference in grey levels (0-255), so the same image'),
+    ('Automatic checks', '21 / 21 pass', 'verify_convolution.py'),
+    ('Filters tested', 'box + Gaussian', 'kernel sizes 3 to 15'),
+]
+THUMBNAIL = 'results/blur_example.jpg'      # picture for the home page card
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SAMPLE_DIR = os.path.join(HERE, 'data', 'module3_samples')
@@ -109,7 +118,7 @@ def _pick_image(key):
                               key=key + '_sample')
         img = _load_sample(SAMPLES[choice])
         if img is None:
-            st.warning('Could not find %s in data/module3_samples/ — pick a '
+            st.warning('Could not find %s in data/module3_samples/ - pick a '
                        'generated pattern or upload an image.' % SAMPLES[choice])
         else:
             st.caption(_SAMPLE_NOTE.get(choice, ''))
@@ -132,14 +141,14 @@ def _pick_image(key):
     img, resized = _fit(img)
     if resized:
         st.caption('Downscaled to %d x %d so the naive spatial convolution '
-                   'stays interactive. The math is unaffected — it just runs '
+                   'stays interactive. The math is unaffected - it just runs '
                    'on fewer pixels.' % (img.shape[1], img.shape[0]))
     return img
 
 
 _SAMPLE_NOTE = {
     'Handwritten page (fine detail)':
-        'Lots of fine strokes, so the blur is obvious straight away — the '
+        'Lots of fine strokes, so the blur is obvious straight away - the '
         'writing stops being readable well before the page stops being a page.',
     'Brick wall (repeating pattern)':
         'The rows of bricks repeat at a regular spacing, so in tab 3 the '
@@ -147,7 +156,7 @@ _SAMPLE_NOTE = {
         'spots, which is the convolution theorem in one picture.',
     'Building against sky (hard edges)':
         'Hard edges against flat sky. Good for comparing box vs Gaussian in '
-        'tab 3 — the box filter rings near a sharp edge, the Gaussian does '
+        'tab 3 - the box filter rings near a sharp edge, the Gaussian does '
         'not. The sky itself barely changes, since it has almost no detail to '
         'lose.',
 }
@@ -157,14 +166,14 @@ _PATTERN_NOTE = {
     'checkerboard': 'Almost all high frequency, so a blur has a dramatic and '
                     'easily judged effect.',
     'step edge': 'A box filter turns a step into a ramp exactly (k+1) pixels '
-                 'wide — an analytic result you can check against the output.',
+                 'wide - an analytic result you can check against the output.',
     'circle': 'Curved edges make the isotropy of the Gaussian versus the '
               'squareness of the box filter visible.',
     'white noise': 'Flat expected spectrum, so the blurred spectrum shows the '
                    'transfer function |H(u,v)| almost directly.',
     'sine grating': 'A single spatial frequency. Blurring can only scale its '
-                    'amplitude by |H| at that frequency — it cannot change '
-                    'the pattern — which is the convolution theorem visible '
+                    'amplitude by |H| at that frequency - it cannot change '
+                    'the pattern - which is the convolution theorem visible '
                     'in one picture.',
     'impulse': 'Blurring one lit pixel returns the kernel itself: the filter '
                'IS its impulse response (point spread function).',
@@ -234,7 +243,7 @@ def _tab_blur():
     with c1:
         _show(img, 'Original')
     with c2:
-        _show(blurred, 'Blurred — %s, %s boundary (%.3f s)' % (label, boundary, secs))
+        _show(blurred, 'Blurred - %s, %s boundary (%.3f s)' % (label, boundary, secs))
 
     st.divider()
     c1, c2 = st.columns([1, 1])
@@ -254,10 +263,10 @@ def _tab_blur():
         kh = kernel.shape[0]
         px = img.shape[0] * img.shape[1]
         st.markdown(
-            '- Image: %d × %d = %s pixels\n'
-            '- Kernel: %d × %d = %d taps\n'
-            '- Multiply–adds, naive 2D: **%s**\n'
-            '- Multiply–adds if run separably (%d + %d per pixel): **%s**'
+            '- Image: %d x %d = %s pixels\n'
+            '- Kernel: %d x %d = %d taps\n'
+            '- Multiply-adds, naive 2D: **%s**\n'
+            '- Multiply-adds if run separably (%d + %d per pixel): **%s**'
             % (img.shape[1], img.shape[0], format(px, ','),
                kh, kh, kh * kh, format(px * kh * kh, ','),
                kh, kh, format(px * 2 * kh, ',')))
@@ -268,7 +277,7 @@ def _tab_blur():
                        'full 2D convolution to %.2e. So the 2D Gaussian does '
                        'split into two 1D passes.' % (ssecs, secs, err))
         else:
-            st.info('The box filter is separable too — a 2D mean is a row '
+            st.info('The box filter is separable too - a 2D mean is a row '
                     'mean then a column mean. Switch to Gaussian to see the '
                     'separable timing side by side.')
 
@@ -282,10 +291,10 @@ def _tab_equivalence():
         'The convolution theorem says these two procedures must produce the '
         'same image:')
     c1, c2 = st.columns(2)
-    c1.markdown('**Route A — spatial**\n\n'
+    c1.markdown('**Route A - spatial**\n\n'
                 'Slide the kernel over the image and accumulate, '
                 '`convolve_spatial`.')
-    c2.markdown('**Route B — frequency**\n\n'
+    c2.markdown('**Route B - frequency**\n\n'
                 'FFT the image, FFT the kernel, multiply the two pointwise, '
                 'inverse FFT, `convolve_fft_circular`.')
     st.latex(r'f(x,y) * h(x,y) \;\;\Longleftrightarrow\;\; F(u,v)\,H(u,v)')
@@ -297,50 +306,50 @@ def _tab_equivalence():
 
     mode = st.radio(
         'Which pairing to test',
-        ['Matched — circular convolution both ways',
-         'Matched — linear (zero-padded) convolution both ways',
-         'Mismatched — wrap in space vs. the plain DFT product'],
+        ['Matched - circular convolution both ways',
+         'Matched - linear (zero-padded) convolution both ways',
+         'Mismatched - wrap in space vs. the plain DFT product'],
         key='t2_mode')
 
-    if mode.startswith('Matched — circular'):
+    if mode.startswith('Matched - circular'):
         a, ta = F.timed(F.convolve_spatial, img, kernel, 'wrap')
         b, tb = F.timed(F.convolve_fft_circular, img, kernel)
         note = ('Both routes are computing circular convolution: the spatial '
                 'side wraps at the borders, and the DFT does that implicitly '
                 'because it treats the image as one period of an infinitely '
                 'tiled signal. Like for like.')
-    elif mode.startswith('Matched — linear'):
+    elif mode.startswith('Matched - linear'):
         a, ta = F.timed(F.convolve_spatial, img, kernel, 'zero')
         b, tb = F.timed(F.convolve_fft_linear, img, kernel)
-        note = ('Zero-padding both signals out to (H+k−1, W+k−1) before the '
+        note = ('Zero-padding both signals out to (H+k-1, W+k-1) before the '
                 'transform leaves the wrap-around nowhere to land, so the '
-                'product of the DFTs now equals *linear* convolution — the '
+                'product of the DFTs now equals *linear* convolution - the '
                 'match to zero-padded spatial filtering.')
     else:
         a, ta = F.timed(F.convolve_spatial, img, kernel, 'reflect')
         b, tb = F.timed(F.convolve_fft_circular, img, kernel)
         note = ('Deliberately mismatched: the spatial side mirrors at the '
                 'border while the Fourier side wraps. The theorem is not '
-                'violated — the two are simply being asked different '
+                'violated - the two are simply being asked different '
                 'questions at the edges.')
 
     st.info(note)
 
     c1, c2, c3 = st.columns(3)
     with c1:
-        _show(a, 'Route A — spatial (%.3f s)' % ta)
+        _show(a, 'Route A - spatial (%.3f s)' % ta)
     with c2:
-        _show(b, 'Route B — Fourier (%.3f s)' % tb)
+        _show(b, 'Route B - Fourier (%.3f s)' % tb)
     with c3:
         dmap, gain = F.difference_map(a, b)
-        st.image(dmap, caption='|A − B|, brightness ×%.3g' % gain,
+        st.image(dmap, caption='|A - B|, brightness x%.3g' % gain,
                  width='stretch')
 
     m = F.compare(a, b)
     st.markdown('**Measured difference between the two routes**')
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric('Max |A − B|', '%.3e' % m['max_abs'])
-    c2.metric('Mean |A − B|', '%.3e' % m['mean_abs'])
+    c1.metric('Max |A - B|', '%.3e' % m['max_abs'])
+    c2.metric('Mean |A - B|', '%.3e' % m['mean_abs'])
     c3.metric('RMSE', '%.3e' % m['rmse'])
     c4.metric('PSNR', '∞ dB' if np.isinf(m['psnr_db']) else '%.1f dB' % m['psnr_db'])
 
@@ -349,7 +358,7 @@ def _tab_equivalence():
             st.success(
                 'Same image, to floating-point round-off. The biggest '
                 'difference at any pixel is %.3e, about %.0f float64 rounding '
-                'steps. On a 0–255 scale that is around one part in %.0e. So '
+                'steps. On a 0-255 scale that is around one part in %.0e. So '
                 'convolving in space and multiplying in frequency give the '
                 'same result.'
                 % (m['max_abs'], m['eps_multiples'], 255.0 / max(m['max_abs'], 1e-300)))
@@ -363,20 +372,20 @@ def _tab_equivalence():
             interior = d[h:-h, h:-h] if h > 0 else d
             st.warning(
                 'Max difference over the whole image: **%.3e**. But crop off '
-                'the outer %d pixels — which is exactly (k−1)/2, how far the '
-                'kernel hangs over the edge — and the max difference across '
+                'the outer %d pixels - which is exactly (k-1)/2, how far the '
+                'kernel hangs over the edge - and the max difference across '
                 'the whole interior drops to **%.3e**. So the theorem is not '
                 'failing. The two sides just handle the border differently, '
                 'and they agree everywhere the border does not matter.'
                 % (m['max_abs'], h, interior.max()))
             fig, ax = plt.subplots(figsize=(5.2, 2.4))
             ax.plot(d[d.shape[0] // 2, :], lw=0.9)
-            ax.set_title('One horizontal scanline of |A − B|', fontsize=9)
+            ax.set_title('One horizontal scanline of |A - B|', fontsize=9)
             ax.set_xlabel('column'); ax.set_ylabel('abs difference')
             ax.axvspan(0, h, color='tab:red', alpha=0.15)
             ax.axvspan(d.shape[1] - h, d.shape[1], color='tab:red', alpha=0.15)
             _fig(fig)
-            st.caption('Shaded: the (k−1)/2 border strips. Between them the '
+            st.caption('Shaded: the (k-1)/2 border strips. Between them the '
                        'trace sits flat on zero.')
 
     with st.expander('Independent cross-check against OpenCV'):
@@ -388,7 +397,7 @@ def _tab_equivalence():
             'the check runs in reflect mode with the kernel flipped.')
         mine = F.convolve_spatial(img, kernel, 'reflect')
         theirs = F.reference_opencv(img, kernel, 'reflect')
-        st.metric('Max |mine − cv2.filter2D|',
+        st.metric('Max |mine - cv2.filter2D|',
                   '%.3e' % F.compare(mine, theirs)['max_abs'])
 
 
@@ -417,15 +426,15 @@ def _tab_spectra():
 
     c1, c2, c3 = st.columns(3)
     with c1:
-        st.image(F.log_spectrum(Fu, True), caption='|F(u,v)| — the image',
+        st.image(F.log_spectrum(Fu, True), caption='|F(u,v)| - the image',
                  width='stretch')
     with c2:
-        st.image(F.log_spectrum(Hu, True), caption='|H(u,v)| — the filter (%s)' % label,
+        st.image(F.log_spectrum(Hu, True), caption='|H(u,v)| - the filter (%s)' % label,
                  width='stretch')
     with c3:
-        st.image(F.log_spectrum(Gu, True), caption='|F·H| — the product',
+        st.image(F.log_spectrum(Gu, True), caption='|F*H| - the product',
                  width='stretch')
-    st.caption('All three are log(1+|·|) with DC shifted to the centre. '
+    st.caption('All three are log(1+|*|) with DC shifted to the centre. '
                'Bright centre, dark rim in the middle panel is exactly what a '
                'low-pass filter should look like.')
 
@@ -444,7 +453,7 @@ def _tab_spectra():
         'H(0,0) = **%.6f**, which is the sum of the kernel taps. It being 1 '
         'is why the average brightness survives the blur. The shape also tells '
         'the two filters apart: a box filter is a rectangle in space, so its '
-        'transform is a sinc that **rings** — it dips below zero and back, '
+        'transform is a sinc that **rings** - it dips below zero and back, '
         'which is where the faint ripples near sharp edges come from. A '
         'Gaussian transforms into another Gaussian, so no ringing. Switch the '
         'filter above and watch the curve change.' % Hs[cy, cx])
@@ -477,10 +486,10 @@ def _tab_timing():
     st.subheader('Why the frequency domain is worth the trouble')
     st.markdown(
         'The two routes give the same answer, so the choice between them is '
-        'about cost. Spatial convolution does k² multiply–adds per pixel, so '
+        'about cost. Spatial convolution does k² multiply-adds per pixel, so '
         'it grows with the **area** of the kernel. The FFT route costs '
-        'O(HW log HW) no matter how big the kernel is — the kernel only has to '
-        'be padded up to the image size, and after that a 3×3 and a 31×31 '
+        'O(HW log HW) no matter how big the kernel is - the kernel only has to '
+        'be padded up to the image size, and after that a 3x3 and a 31x31 '
         'filter are the same amount of work. Somewhere there is a crossover.')
 
     c1, c2 = st.columns(2)
@@ -494,7 +503,7 @@ def _tab_timing():
         return
 
     sizes = [s for s in range(3, upto + 1, 4)]
-    with st.spinner('Timing %d kernel sizes on a %d×%d image…' % (len(sizes), side, side)):
+    with st.spinner('Timing %d kernel sizes on a %dx%d image...' % (len(sizes), side, side)):
         rows = _timing_sweep(side, side, tuple(sizes))
 
     import pandas as pd
@@ -505,7 +514,7 @@ def _tab_timing():
     ax.plot(df['size'], df['fft_s'], '^-', label='FFT multiply')
     ax.set_xlabel('kernel width k (pixels)')
     ax.set_ylabel('seconds')
-    ax.set_title('Cost vs kernel size, %d×%d image' % (side, side), fontsize=10)
+    ax.set_title('Cost vs kernel size, %dx%d image' % (side, side), fontsize=10)
     ax.legend(fontsize=8)
     ax.grid(alpha=0.3)
     _fig(fig)
@@ -518,10 +527,10 @@ def _tab_timing():
     cross = np.where(naive > fft)[0]
     flat = fft.max() / max(fft.min(), 1e-12)
     st.markdown(
-        '- The FFT trace is essentially **flat** (max/min ratio %.2f across the '
-        'whole sweep) — the kernel size genuinely does not enter its cost.\n'
+        '- The FFT trace is **flat** (max/min ratio %.2f across the '
+        'whole sweep) - the kernel size genuinely does not enter its cost.\n'
         '- The naive spatial trace grows like k², as predicted: from %.4f s at '
-        '3×3 to %.4f s at %s.\n'
+        '3x3 to %.4f s at %s.\n'
         '- %s'
         % (flat, naive[0], naive[-1], df["kernel"].iloc[-1],
            ('Crossover at **k = %d**. Past that the FFT route wins, even '
@@ -564,23 +573,23 @@ def _tab_example():
     viaf = np.real(np.fft.ifft(Ff * Hf))
 
     import pandas as pd
-    st.markdown('**Route A — circular convolution, done term by term**')
+    st.markdown('**Route A - circular convolution, done term by term**')
     st.dataframe(pd.DataFrame({'n': range(N), 'f[n]': f,
                                '(f*h)[n]': np.round(direct, 6)}),
                  width='stretch', hide_index=True)
 
-    st.markdown('**Route B — multiply the DFTs, then transform back**')
+    st.markdown('**Route B - multiply the DFTs, then transform back**')
     st.dataframe(pd.DataFrame({
         'k': range(N),
         'F[k]': [('%+.3f%+.3fi' % (z.real, z.imag)) for z in Ff],
         'H[k]': [('%+.3f%+.3fi' % (z.real, z.imag)) for z in Hf],
-        '(F·H)[k]': [('%+.3f%+.3fi' % (z.real, z.imag)) for z in Ff * Hf],
+        '(F*H)[k]': [('%+.3f%+.3fi' % (z.real, z.imag)) for z in Ff * Hf],
         'IDFT': np.round(viaf, 6)}),
         width='stretch', hide_index=True)
 
     st.success('Largest disagreement between the two columns: **%.2e**. '
                'The pulse of height 9 spread over 2 samples comes back as '
-               '3, 6, 6, 3 — total signal energy conserved, edges ramped. '
+               '3, 6, 6, 3 - total signal energy conserved, edges ramped. '
                'Both routes agree on every sample.'
                % np.abs(direct - viaf).max())
 
@@ -592,7 +601,7 @@ def _tab_example():
                 'here.' % Hf[0].real)
 
     st.divider()
-    st.markdown('**And the same thing in 2D, on a 4×4 image**')
+    st.markdown('**And the same thing in 2D, on a 4x4 image**')
     rng = np.random.default_rng(3)
     small = rng.integers(0, 10, (4, 4)).astype(float)
     k = F.box_kernel(3)
@@ -613,11 +622,11 @@ def _tab_theory():
     st.markdown(
         'The experiments show the two routes agree. This is the argument for '
         'why they must. I am giving the discrete (DFT) version, because that '
-        'is what the code actually computes — the continuous Fourier-transform '
+        'is what the code actually computes - the continuous Fourier-transform '
         'proof is the same three steps with integrals in place of sums, and '
         'both are written out in `modules/module3/theory.md`.')
 
-    st.markdown('**Setup.** An N×M image `f`, a filter `h` padded to the same '
+    st.markdown('**Setup.** An NxM image `f`, a filter `h` padded to the same '
                 'size, and the 2D DFT:')
     st.latex(r'F(u,v)=\sum_{x=0}^{N-1}\sum_{y=0}^{M-1} f(x,y)\,'
              r'e^{-j2\pi\left(\frac{ux}{N}+\frac{vy}{M}\right)}')
@@ -629,7 +638,7 @@ def _tab_theory():
 
     st.markdown('**Step 2.** Swap the order of summation (finite sums, so this '
                 'is free) and split the exponential using '
-                '`e^{a+b} = e^a · e^b`, writing `x = (x−m) + m`:')
+                '`e^{a+b} = e^a, e^b`, writing `x = (x-m) + m`:')
     st.latex(r'G(u,v)=\sum_{m}\sum_{n} f(m,n)\,'
              r'e^{-j2\pi\left(\frac{um}{N}+\frac{vn}{M}\right)}'
              r'\sum_{x}\sum_{y} h(x-m,y-n)\,'
@@ -651,8 +660,8 @@ def _tab_theory():
         'the border instead, it is doing something different near the edges '
         'and there is no reason for it to match there. That is what tab 2 '
         'shows: match the conventions and they agree to 1e-13, mismatch them '
-        'and the difference is stuck in a (k−1)/2 border. Zero-padding both '
-        'to N+k−1 first leaves the wrap region empty, which is how you use '
+        'and the difference is stuck in a (k-1)/2 border. Zero-padding both '
+        'to N+k-1 first leaves the wrap region empty, which is how you use '
         'the same theorem to get *linear* convolution (`convolve_fft_linear`).')
 
     st.markdown(
@@ -671,21 +680,19 @@ def _tab_theory():
 
 # ---------------------------------------------------------------------------
 def render():
-    st.title('Module 3 — Image Blurring & the Convolution Theorem')
-    st.caption('CSc 8830 · Dhanush Nagarajan · Georgia State University')
     st.markdown(
         'Blurring done as a spatial convolution I wrote myself, then shown to '
         'match multiplying by the same filter in the Fourier domain. Every '
-        'number below is computed live from the image you pick — nothing here '
+        'number below is computed live from the image you pick - nothing here '
         'is a saved result.')
 
     t1, t2, t3, t4, t5, t6 = st.tabs([
-        '1 · Blur it',
-        '2 · Space = Frequency',
-        '3 · Spectra',
-        '4 · Cost',
-        '5 · Worked example',
-        '6 · The proof'])
+        '1. Blur it',
+        '2. Space = Frequency',
+        '3. Spectra',
+        '4. Cost',
+        '5. Worked example',
+        '6. The proof'])
     with t1:
         _tab_blur()
     with t2:

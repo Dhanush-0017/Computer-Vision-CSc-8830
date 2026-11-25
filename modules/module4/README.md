@@ -1,97 +1,118 @@
-# Module 4 — Human Boundary Detection (RGB & Thermal)
+# Module 4: Human Boundary Detection (RGB and Thermal)
 
-CSc 8830, Computer Vision. Dhanush Nagarajan.
+Find the exact outline of a person in an RGB image and in a thermal image using
+classical computer vision only, and compare the results with SAM2.
 
-## What the assignment asked for
+## Overview
 
-1. Find the exact boundary of a human in an RGB image. OpenCV only, no
-   deep learning or machine learning. Compare with SAM2.
-2. Same for an image from a thermal camera. Compare with SAM2.
-3. Theory: explain, with derivations, how edge detection and region
-   segmentation can be done with Fourier (frequency) domain analysis.
-
-## What's in this folder
-
-| File | What it does |
+| Part | Method |
 |---|---|
-| `__init__.py` | The Module 4 page in the web app |
-| `segment.py` | Q1 and Q2: the RGB method, the thermal method, IoU/Dice |
-| `find_person.py` | Outline a person in one image from the command line |
-| `compare.py` | Compares both results with SAM2, writes the table and figures |
-| `sam2_reference.py` | Runs SAM2 **once, offline**, and saves its masks. Not used by the app |
-| `theory.md` | Q3: the derivations |
-| `data/rgb/`, `data/thermal/` | One RGB image and one thermal image |
-| `data/sam2_masks/` | SAM2's masks, made by `sam2_reference.py` |
-| `data/prompts.json` | The box around the person in each image. My method and SAM2 get the same one |
-| `data/SOURCES.md` | Where the images come from |
-| `results_comparison.csv`, `figures/` | The comparison with SAM2 |
+| Q1: RGB image | GrabCut (graph cut on colour models) |
+| Q2: Thermal image | Background subtraction + hysteresis threshold |
+| Comparison | IoU and Dice against SAM2 masks |
+| Q3: Theory | Edge detection and region segmentation in the Fourier domain |
 
-## How it works
+No deep learning or machine learning is used for the results. SAM2 is only the
+reference; its masks are generated once, offline, and loaded from files.
 
-Both methods start from a **box around the person**, which is the same
-prompt SAM2 gets. The boundary is traced with
+## Approach
+
+Both methods start from the same input SAM2 gets: a box around the person
+(`data/prompts.json`). The final outline is traced with
 `cv2.findContours(..., CHAIN_APPROX_NONE)`, which keeps every boundary pixel.
 
-**Q1, RGB: GrabCut** (`segment.grabcut_person`). GrabCut is a graph cut on
-colour. It fits two colour models (person and background) to the pixels of
-*this* image, then finds the best labelling with a min-cut, re-fits and cuts
-again. Nothing is trained ahead of time, so it isn't machine learning. Before
-the cut, a thin strip down the middle of the box is fixed as person, and
-pixels whose colour mostly occurs outside the box start as background.
+### Q1: RGB with GrabCut (`segment.grabcut_person`)
 
-**Q2, thermal: threshold** (`segment.thermal_person`). In a thermal image,
-brightness is roughly temperature, and a person is warmer than most of a
-night scene. The road near the camera is warm too, so first the background
-is estimated with a wide median filter and subtracted. Then a hysteresis
-threshold: Otsu's level, plus a lower level for pixels connected to it.
-Last, clean-up and fill holes.
+GrabCut fits two colour models, one for the person and one for the
+background, to the pixels of this image only, then finds the best labelling
+with a min-cut and repeats. Nothing is trained in advance. To start it off:
 
-**Q3: theory.** `theory.md` derives:
+1. A thin vertical strip in the middle of the box is fixed as person.
+2. Pixels whose colour mostly appears outside the box start as background.
+3. GrabCut re-fits the colour models and cuts again until it settles.
 
-- the derivative theorem, and why it makes edge detection high-pass filtering
-- why noise makes it band-pass (derivative of Gaussian, LoG)
-- high-pass filters
-- low-pass and band-pass energy for finding regions
-- a small example worked by hand
+### Q2: Thermal with thresholding (`segment.thermal_person`)
 
-## Running it
+In a thermal image brightness tracks temperature, so a person stands out from
+a cooler scene.
 
-Web app, from the repo root:
+1. Estimate the background with a wide median filter and subtract it, which
+   removes large warm areas like the road.
+2. Hysteresis threshold: Otsu's level for strong pixels, and a lower level for
+   pixels connected to them.
+3. Morphological clean-up and hole filling.
+
+### Q3: Theory (`theory.md`)
+
+- The derivative theorem, and why edge detection is high-pass filtering
+- Why noise turns it into band-pass filtering (derivative of Gaussian, LoG)
+- High-pass filter design
+- Low-pass and band-pass energy for finding regions
+- A small worked example by hand
+
+## Results
+
+| Image | Method | IoU vs SAM2 | Dice vs SAM2 |
+|---|---|---|---|
+| RGB: FudanPed00013 | GrabCut | **0.943** | **0.971** |
+| Thermal: FLIR_07583 | Threshold | **0.790** | **0.883** |
+
+![RGB comparison with SAM2](results/compare_rgb.png)
+
+![Thermal comparison with SAM2](results/compare_thermal.png)
+
+## Project structure
 
 ```
+module4/
+├── __init__.py            web app page (RGB, thermal, theory tabs)
+├── segment.py             the RGB and thermal methods, IoU and Dice
+├── find_person.py         CLI: outline a person in one image
+├── compare.py             CLI: compare both methods with SAM2
+├── sam2_reference.py      generates the SAM2 masks offline (not used by the app)
+├── theory.md              Q3 derivations
+├── data/
+│   ├── rgb/, thermal/     input images
+│   ├── sam2_masks/        SAM2 reference masks
+│   ├── prompts.json       the box around the person in each image
+│   └── SOURCES.md         where the images come from
+└── results/
+    ├── results_comparison.csv
+    ├── compare_rgb.png
+    ├── compare_thermal.png
+    └── thermal_stages.png
+```
+
+## Usage
+
+Web app (from the repo root):
+
+```
+pip install -r requirements.txt
 streamlit run app.py
 ```
 
-Command line, from this folder:
+Command line (from `modules/module4`):
 
 ```
-cd modules/module4
-python find_person.py --sample FudanPed00013.png      # Q1
-python find_person.py --sample FLIR_07583.png         # Q2
-python compare.py        # comparison with SAM2: results_comparison.csv, figures/
+python find_person.py --sample FudanPed00013.png    # Q1, RGB
+python find_person.py --sample FLIR_07583.png       # Q2, thermal
+python compare.py                                   # comparison with SAM2, written to results/
 ```
 
-`find_person.py` writes `out/<name>_mask.png`, `_overlay.png` and
-`_boundary.txt` (the boundary as x, y points).
+`find_person.py` writes the mask, an overlay and the boundary points
+(`_boundary.txt`, one x, y per line) to `out/`.
 
-To remake the SAM2 masks (optional, needs torch):
+Regenerating the SAM2 masks is optional and needs PyTorch:
 
 ```
 pip install ultralytics torch torchvision
 python sam2_reference.py
 ```
 
-## Comparison with SAM2
+## References
 
-| Image | Method | IoU | Dice |
-|---|---|---|---|
-| RGB — FudanPed00013 | GrabCut | 0.943 | 0.971 |
-| Thermal — FLIR_07583 | Threshold | 0.790 | 0.883 |
-
-- **RGB:** the background is plain, so GrabCut and SAM2 nearly agree. The
-  small differences are along the edges: the feet and the edge of the
-  backpack.
-- **Thermal:** the threshold picks up warm things touching her, like the
-  lamp-post crossbar at her head and a warm patch beside her arm. It misses
-  her feet, which are cooler than the rest of her. SAM2 gets a cleaner
-  outline because it knows the shape of a person.
+- C. Rother, V. Kolmogorov and A. Blake, "GrabCut: Interactive foreground extraction using iterated graph cuts", SIGGRAPH, 2004.
+- N. Otsu, "A threshold selection method from gray-level histograms", IEEE SMC, 1979.
+- N. Ravi et al., "SAM 2: Segment Anything in Images and Videos", 2024.
+- Images: see `data/SOURCES.md`.

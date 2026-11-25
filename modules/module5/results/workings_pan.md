@@ -1,4 +1,4 @@
-### Worked example — pan, frames 308 → 309, point (x, y) = (259, 198)
+### Worked example - pan, frames 308 → 309, point (x, y) = (259, 198)
 
 The point is on the static background, and moves only because the camera turns.
 
@@ -24,7 +24,7 @@ Structure tensor (sums over the window):
 
 $$G = \begin{bmatrix}\sum I_x^2 & \sum I_xI_y\\ \sum I_xI_y & \sum I_y^2\end{bmatrix} = \begin{bmatrix}146416.8 & -784.2 \\ -784.2 & 141626.8\end{bmatrix},\qquad \lambda_{min} = 141501.6,\ \lambda_{max} = 146541.9$$
 
-Both eigenvalues are well above zero, so $G$ is invertible and the point is trackable (not an edge or a flat patch — the aperture problem does not apply here).
+Both eigenvalues are well above zero, so $G$ is invertible and the point is trackable (not an edge or a flat patch - the aperture problem does not apply here).
 
 Iterations: $e = I_1(\mathbf{x}) - I_2(\mathbf{x} + \mathbf{d})$ (with $I_2$ sampled by bilinear interpolation), $\mathbf{b} = \sum [I_x e,\ I_y e]^T$, $\Delta\mathbf{d} = G^{-1}\mathbf{b}$, $\mathbf{d} \leftarrow \mathbf{d} + \Delta\mathbf{d}$.
 

@@ -1,8 +1,5 @@
 # Theory: blurring as filtering, and why the spatial and Fourier routes agree
 
-CSc 8830 (Computer Vision) — Module 3
-Dhanush Nagarajan, Georgia State University
-
 This is the written part of Module 3. The assignment asks for two things: blur
 an image using a filtering approach, and show that filtering in the spatial
 domain gives the same result as the Fourier-domain version, i.e. that
@@ -40,7 +37,7 @@ well as blurring it.
 
 The Gaussian is **separable**: `exp(−(x²+y²)/2σ²) = exp(−x²/2σ²) · exp(−y²/2σ²)`,
 so a 2D Gaussian blur is a 1D blur along the rows followed by a 1D blur down the
-columns. That drops the cost from k² multiply–adds per pixel to 2k.
+columns. That drops the cost from k² multiply-adds per pixel to 2k.
 `convolve_separable()` implements this, and the self-test asserts it agrees with
 the full 2D convolution to ~1e-13.
 
@@ -65,12 +62,12 @@ f * h   ⟷   F · H
 where `F = 𝔉{f}` and `H = 𝔉{h}`. Concretely, these two procedures produce the
 same image:
 
-| | Route A — spatial | Route B — frequency |
+| | Route A - spatial | Route B - frequency |
 |---|---|---|
-| 1 | — | `F = FFT2(f)` |
-| 2 | — | `H = FFT2(h)`, h padded to the image size |
+| 1 | - | `F = FFT2(f)` |
+| 2 | - | `H = FFT2(h)`, h padded to the image size |
 | 3 | slide `h` over `f`, accumulate | `G = F · H`, pointwise |
-| 4 | — | `g = real(IFFT2(G))` |
+| 4 | - | `g = real(IFFT2(G))` |
 | cost | O(H·W·k²) | O(H·W·log(H·W)) |
 
 ---
@@ -113,7 +110,7 @@ G(u,v) = H(u,v) ∫∫ f(a,b) e^{−j2π(ua+vb)} da db = F(u,v) · H(u,v)      �
 ```
 
 The whole proof is one substitution and one factorisation of an exponential. The
-step that does the work is `e^{A+B} = e^A · e^B` — the reason the Fourier basis
+step that does the work is `e^{A+B} = e^A · e^B` - the reason the Fourier basis
 functions are the right ones is precisely that shifting one of them only
 multiplies it by a constant.
 
@@ -144,8 +141,8 @@ so the image is treated as one tile of an infinitely repeated pattern.
 G(u,v) = Σ_x Σ_y [ Σ_m Σ_n f(m,n) h(x−m, y−n) ] e^{−j2π(ux/N + vy/M)}
 ```
 
-**Step 2.** Swap the summation order — these are finite sums, so no convergence
-argument is needed — and write `x = (x−m) + m`, `y = (y−n) + n` in the exponent
+**Step 2.** Swap the summation order - these are finite sums, so no convergence
+argument is needed - and write `x = (x−m) + m`, `y = (y−n) + n` in the exponent
 so it factors:
 
 ```
@@ -154,7 +151,7 @@ G(u,v) = Σ_m Σ_n f(m,n) e^{−j2π(um/N + vn/M)}
 ```
 
 **Step 3.** The inner double sum looks like it depends on `m` and `n`, but it does
-not. As `x` runs over a full period `0…N−1`, so does `x−m` modulo N — shifting
+not. As `x` runs over a full period `0…N−1`, so does `x−m` modulo N - shifting
 just permutes which terms get added, and addition does not care about order. So
 the inner sum equals `H(u,v)` for every `m, n`, and pulls out:
 
@@ -189,7 +186,7 @@ edge's neighbour.
 So a spatial filter that pads with zeros, or mirrors, or repeats the edge pixel,
 is computing something genuinely different near the border from what the DFT
 product computes, and there is no reason for the two to agree there. This is not
-a failure of the theorem — the theorem is about circular convolution and is
+a failure of the theorem - the theorem is about circular convolution and is
 exactly true. It is a statement about which question each method is being asked
 at the edges.
 
@@ -207,8 +204,8 @@ used in practice when linear convolution is what you want.
 
 And the third case, which is the most informative to look at: deliberately
 mismatch them. The measurement (section 8) is that the difference is confined to
-a border strip of exactly (k−1)/2 pixels — the distance the kernel overhangs the
-image — and is *identically zero*, not merely small, across the whole interior.
+a border strip of exactly (k−1)/2 pixels - the distance the kernel overhangs the
+image - and is *identically zero*, not merely small, across the whole interior.
 That is a sharper piece of evidence than the matched case alone: it localises the
 disagreement to precisely the region where the two definitions differ, and shows
 the theorem holding perfectly everywhere else.
@@ -223,7 +220,7 @@ create a frequency the image did not contain, and cannot move energy from one
 frequency to another. All it can do is reweight.
 
 A blur, then, is a filter whose `H` is near 1 at low frequencies and small at
-high ones — a **low-pass filter**. Fine detail (high frequency) is attenuated,
+high ones - a **low-pass filter**. Fine detail (high frequency) is attenuated,
 broad structure (low frequency) survives, and `H(0,0) = 1` keeps the average
 brightness. Tab 3 of the app shows `|F|`, `|H|`, and `|F·H|` side by side; the
 middle panel is a bright centre fading to a dark rim, which is what that sentence
@@ -234,7 +231,7 @@ view does not:
 
 - The **box filter** is a rectangle in space. The transform of a rectangle is a
   sinc, which oscillates and goes **negative**. Negative `H` at some frequency
-  means that frequency comes back phase-inverted — and that is the origin of the
+  means that frequency comes back phase-inverted - and that is the origin of the
   faint ripples a box blur leaves near sharp edges. Section 7 shows this in
   numbers: for a 3-tap mean filter, `H` is negative at `k = 3, 4, 5`.
 - The **Gaussian** transforms to another Gaussian: strictly positive, no side
@@ -242,7 +239,7 @@ view does not:
   own transform shape, and that is the real reason it is the default blur rather
   than any argument about statistics.
 
-There is no kernel that is both compact and sharp-edged in both domains at once —
+There is no kernel that is both compact and sharp-edged in both domains at once  - 
 narrow in space forces wide in frequency. That is the uncertainty principle,
 showing up in image processing as the reason you cannot have a blur that is both
 perfectly local and perfectly band-limited.
@@ -264,14 +261,14 @@ h = [1/3, 1/3, 1/3]                    3-tap mean filter, centred on its middle 
 ```
 
 Centred means the taps sit at offsets −1, 0, +1. Placed into a length-8 array with
-the centre at index 0 — the roll described in section 4 — that is:
+the centre at index 0 - the roll described in section 4 - that is:
 
 ```
 h_p = [1/3, 1/3, 0, 0, 0, 0, 0, 1/3]
         n=0  n=1                n=7 ≡ n=−1
 ```
 
-### Route A — circular convolution, term by term
+### Route A - circular convolution, term by term
 
 `g[n] = Σ_i h_p[i] · f[(n−i) mod 8]`, which with only three non-zero taps is just
 the average of each sample and its two neighbours, wrapping at the ends:
@@ -292,10 +289,10 @@ g = [0, 0, 3, 6, 6, 3, 0, 0]
 ```
 
 Sanity check before going further: the input sums to 18 and so does the output,
-which it must, because `H(0) = Σh = 1`. The sharp pulse has become a trapezoid —
+which it must, because `H(0) = Σh = 1`. The sharp pulse has become a trapezoid  - 
 edges ramped, total preserved. That is a blur.
 
-### Route B — multiply the DFTs
+### Route B - multiply the DFTs
 
 `H[k]` can be written down in closed form rather than computed. With taps at
 offsets −1, 0, +1 and weight 1/3 each:
@@ -305,7 +302,7 @@ H[k] = (1/3)(e^{+j2πk/8} + 1 + e^{−j2πk/8}) = (1 + 2cos(2πk/8)) / 3
 ```
 
 The two complex exponentials are conjugates, so they combine into a cosine and
-**H[k] is purely real** — a consequence of the kernel being symmetric about the
+**H[k] is purely real** - a consequence of the kernel being symmetric about the
 origin, and another sign the centring roll was done correctly. Evaluating:
 
 | k | 2πk/8 | cos | H[k] = (1+2cos)/3 |
@@ -322,7 +319,7 @@ origin, and another sign the centring roll was done correctly. Evaluating:
 Read that column as the filter's frequency response. `H[0] = 1`: DC passes
 untouched, brightness preserved. It falls monotonically to `k = 4` (the Nyquist
 frequency, the fastest alternation the grid can hold), so high frequencies are
-suppressed — this is a low-pass filter. And `H` is **negative at k = 3, 4, 5**:
+suppressed - this is a low-pass filter. And `H` is **negative at k = 3, 4, 5**:
 those frequencies come back inverted, not merely reduced. That is the box
 filter's ringing, visible as a number rather than as an artefact.
 
@@ -341,7 +338,7 @@ non-zero samples is `9(e^{−j6πk/8} + e^{−j8πk/8})`:
 | 7 | −15.3640 + 6.3640j | +0.80474 | −12.3640 + 5.1213j |
 
 (The conjugate symmetry `F[k] = conj(F[8−k])` is the usual consequence of `f`
-being real, and it survives the multiplication because `H` is real — which is why
+being real, and it survives the multiplication because `H` is real - which is why
 the inverse transform below comes out real, as it must.)
 
 Inverse transforming `F·H`:
@@ -358,7 +355,7 @@ Route B (multiply in freq.)  : [0, 0, 3, 6, 6, 3, 0, 0]
 maximum difference           : 4.44e-16      (one unit in the last place of a float64)
 ```
 
-Identical. Not similar — identical to the precision the arithmetic is carried in.
+Identical. Not similar - identical to the precision the arithmetic is carried in.
 
 ### The same thing in 2D
 
@@ -385,8 +382,8 @@ grayscale) by both routes across a range of kernels. Measured:
 | gauss 21, σ=3.5 | 0.2084 | 0.0331 | 6.82e-13 | 7.65e-14 | 1.02e-13 | 308.0 dB |
 | gauss 31, σ=5.0 | 0.4550 | 0.0344 | 9.09e-13 | 1.07e-13 | 1.44e-13 | 305.0 dB |
 
-Pixel values run 0–255. A worst-case disagreement of 1e-13 is about one part in
-10¹⁵ — a few units in the last place of a double, which is what a few thousand
+Pixel values run 0-255. A worst-case disagreement of 1e-13 is about one part in
+10¹⁵ - a few units in the last place of a double, which is what a few thousand
 floating-point butterflies in an FFT accumulate. It is round-off, not
 disagreement. PSNR above 300 dB is the same statement in the usual units (a
 visually lossless JPEG sits around 40 dB).
@@ -405,7 +402,7 @@ max difference over the whole image        : 7.06e+01
 max difference with the 7-px border cropped: 5.68e-13
 ```
 
-56 grey levels of disagreement at the border; 4.8e-13 — i.e. none — everywhere
+56 grey levels of disagreement at the border; 4.8e-13 - i.e. none - everywhere
 else. The border strip is 7 pixels, which is exactly (15−1)/2. Section 5 predicted
 both the magnitude and the location.
 
@@ -414,7 +411,7 @@ little if a shared bug made both wrong the same way, so the self-test also pins 
 spatial convolution against `cv2.filter2D` (kernel flipped, since OpenCV computes
 correlation): max difference 8.5e-14 to 5.4e-13 across all kernels tested. 21 of
 21 assertions pass, including the two that are checked against analytic results
-rather than against another implementation — the impulse response equalling the
+rather than against another implementation - the impulse response equalling the
 kernel exactly, and a k-tap box filter ramping an ideal step edge over exactly
 k−1 intermediate pixels.
 
@@ -436,8 +433,8 @@ The two routes give the same answer, so the choice is purely about cost.
 | 27×27 | 0.0395 s | 0.0029 s | 0.0025 s |
 | 31×31 | 0.0518 s | 0.0031 s | 0.0026 s |
 
-The FFT column is **flat** — 0.0023 to 0.0029 s once past the first
-warm-up measurement — because the kernel is padded to the image size before
+The FFT column is **flat** - 0.0023 to 0.0029 s once past the first
+warm-up measurement - because the kernel is padded to the image size before
 transforming, so a 3×3 and a 31×31 filter are literally the same amount of work.
 The naive spatial column grows by 55× across the same range, tracking k² as
 predicted (31²/3² ≈ 107, and the measured ratio is ~55, the gap being numpy's
@@ -448,7 +445,7 @@ separable implementation there is no crossover in this range: separable filterin
 stays competitive up to 31×31 on an image this size, and is what production code
 generally uses at these kernel sizes. The FFT route wins decisively when kernels
 get genuinely large, when the kernel is not separable, or when the same filter is
-applied to many images — transform the kernel once and reuse `H`.
+applied to many images - transform the kernel once and reuse `H`.
 
 Worth stating plainly: the FFT route is not faster because the transform is
 clever about convolution. It is faster because it replaces an O(k²)-per-pixel

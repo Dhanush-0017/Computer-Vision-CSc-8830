@@ -1,7 +1,5 @@
 # Module 4, Part 3: Edges and Regions in the Fourier Domain
 
-CSc 8830 Computer Vision. Dhanush Nagarajan.
-
 The question asks how edge detection and region segmentation can be done
 with Fourier (frequency) domain analysis, with the maths derived. The short
 version:
@@ -186,7 +184,7 @@ $$
 
 Thresholding $|\nabla f|$ (for example at Otsu's level) gives the edge map.
 
-**Laplacian of Gaussian (Marr–Hildreth).** The same reasoning applied to the
+**Laplacian of Gaussian (Marr-Hildreth).** The same reasoning applied to the
 Laplacian:
 
 $$
@@ -366,7 +364,7 @@ has transfer function $H[k] = j\sin(2\pi k/8)$.
 | 6 | $0$ | $-j$ | $0$ |
 | 7 | $-1 - 2.4142j$ | $-0.7071j$ | $-1.7071 + 0.7071j$ |
 
-Check one entry: $G[1] = 0.7071j\,(-1 + 2.4142j) = -1.7071 - 0.7071j$. ✓
+Check one entry: $G[1] = 0.7071j\,(-1 + 2.4142j) = -1.7071 - 0.7071j$. (checks out)
 
 Notice $G[0] = 0$: the derivative threw away the DC term, which is the
 average brightness, and kept only the change.

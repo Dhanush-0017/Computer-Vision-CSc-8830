@@ -1,80 +1,73 @@
-# CSc 8830 — Computer Vision
+# Computer Vision
 
-Assignment portfolio. Dhanush Nagarajan, Georgia State University.
-
-Every assignment for this course lives in this one repo and is reachable from a
-single web app, which is what the course asks for. `app.py` is the shell: it
-scans `modules/`, finds every module folder, and builds its own navigation. So a
-new assignment drops in as one folder and `app.py` never changes.
-
-Each module is self-contained — its page, its own scripts, its own data, its own
-theory doc, and **its own README**.
+Camera calibration, image filtering, segmentation, optical flow, 3D
+reconstruction and stereo vision. Every module runs from one Streamlit web app.
 
 ## Modules
 
-| # | Topic | Folder | Details |
+| # | Topic | Key result | Folder |
 |---|---|---|---|
-| 2 | Camera calibration & object dimension measurement | `modules/module2/` | [README](modules/module2/README.md) |
-| 3 | Image blurring & the convolution theorem | `modules/module3/` | [README](modules/module3/README.md) |
-| 4 | Human boundary detection (RGB & thermal, vs SAM2) + Fourier theory | `modules/module4/` | [README](modules/module4/README.md) |
-| 5–6 | Optical flow, Lucas–Kanade tracking & structure from motion | `modules/module5/` | [README](modules/module5/README.md) |
-| 7 | Stereo vision: object size from two photos, room size from video | `modules/module7/` | [README](modules/module7/README.md) |
+| 2 | Camera calibration and measuring objects from one photo | 1.64 mm mean error at 2+ m | [`modules/module2`](modules/module2/README.md) |
+| 3 | Image blurring and the convolution theorem | spatial and Fourier blur match to 1.1e-12 | [`modules/module3`](modules/module3/README.md) |
+| 4 | Human boundary detection in RGB and thermal images, compared with SAM2 | IoU 0.943 (RGB), 0.790 (thermal) | [`modules/module4`](modules/module4/README.md) |
+| 5 & 6 | Optical flow, Lucas-Kanade tracking and structure from motion | 0.08 px tracking error, 0.81 px reprojection error | [`modules/module5`](modules/module5/README.md) |
+| 7 | Stereo vision: object size from two photos, room size from video | room measured at 4.21 x 3.44 x 2.42 m | [`modules/module7`](modules/module7/README.md) |
 
-There's no Module 1 — Module 2 was the first assignment with code to submit.
+## Getting started
 
-## Running it
+Requires Python 3.10+.
 
 ```
 pip install -r requirements.txt
 streamlit run app.py
 ```
 
-Opens at `http://localhost:8501`. Pick a module from the sidebar.
+The app opens at `http://localhost:8501`. The home page has a card for every
+module with its headline result. Each module page has its own link
+(`?page=module7`) and starts with a header showing the key results.
 
-Each module's own README has the command line instructions for that module's
-scripts.
+Each module also has command line scripts; see that module's README.
 
-## Layout
+## Architecture
+
+`app.py` is a small shell that discovers modules at run time. It scans
+`modules/`, loads every `moduleN/` package and builds the navigation and home
+page from a few attributes each module exposes:
+
+| Attribute | Purpose |
+|---|---|
+| `NUMBER`, `TITLE`, `SUBTITLE`, `STATUS` | Shown in the sidebar and on the home card |
+| `THUMBNAIL` | Optional picture for the home card |
+| `LABEL` | Optional display name, e.g. "Modules 5 & 6" |
+| `RESULTS` | Key numbers shown on the home card and in the page header |
+| `render()` | Draws the module's page |
+
+Adding a module means adding a folder; `app.py` doesn't change. Each module is
+loaded from its file path, so a failing module shows an error on its own page
+without affecting the rest of the site.
+
+## Repository layout
 
 ```
-app.py                      # the shell, finds modules/moduleN/ by itself
-requirements.txt
-modules/
-  _template.py               # copy this to start a new module
-  module2/
-    README.md                 # what this module is, how to run it, results
-    __init__.py               # the page
-    common.py                 # the maths
-    calibrate.py, measure.py, validate.py, selftest.py
-    theory.md
-    data/, calibration/
-  module3/
-    README.md
-    __init__.py               # the page
-    filtering.py              # the maths
-    blur.py, verify_convolution.py
-    theory.md
-    data/
-  module4/
-    README.md
-    __init__.py               # the page
-    segment.py                # RGB + thermal methods, IoU/Dice
-    find_person.py, compare.py, sam2_reference.py
-    theory.md
-    data/, figures/
-  module5/                    # Modules 5 & 6 (one combined assignment)
-    README.md
-    __init__.py               # the page
-    flow.py                   # optical flow, my Lucas-Kanade, bilinear interpolation
-    make_flow_videos.py, validate_tracking.py, sfm.py
-    theory.md
-    data/, results/
-files/                        # my working files for the PDFs and videos, not tracked
+.
+├── app.py                 web app shell (module discovery, home page, navigation)
+├── ui.py                  the site's look: CSS, sidebar, home cards, page headers
+├── requirements.txt
+├── .streamlit/
+│   └── config.toml        theme
+├── src/
+│   └── app.py             entry point used by the Streamlit Cloud deployment
+└── modules/
+    ├── _template.py       starting point for a new module
+    └── moduleN/
+        ├── README.md      approach, results, usage
+        ├── __init__.py    the module's web page
+        ├── *.py           algorithms and command line scripts
+        ├── theory.md      derivations (where the module has them)
+        ├── data/          inputs: photos, videos, calibration
+        └── results/       outputs: plots, tables, figures
 ```
 
-## How a module plugs in
+## Tech stack
 
-`app.py` imports each `modules/moduleN/` folder and reads four things off it —
-`NUMBER`, `TITLE`, `SUBTITLE`, `STATUS` — plus a `render()` function that draws
-the page. That's the whole contract. Nothing is hardcoded in `app.py`, so adding
-Module 4 later means creating the folder and nothing else.
+Python, OpenCV, NumPy, pandas, Matplotlib, Streamlit.

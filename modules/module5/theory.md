@@ -1,6 +1,6 @@
-# Modules 5 & 6 — Theory
+# Modules 5 & 6 - Theory
 
-## Part A — Optical flow and tracking
+## Part A - Optical flow and tracking
 
 ### A1. The brightness constancy assumption
 
@@ -51,20 +51,20 @@ $$
 
 so:
 
-1. **Where things move** — the flow is zero on the static background and
+1. **Where things move** - the flow is zero on the static background and
    non-zero on moving objects. Thresholding $|\mathbf u|$ segments the moving
    objects without any model of what they are.
-2. **Which way they move** — the direction of $\mathbf u$ is the direction of
+2. **Which way they move** - the direction of $\mathbf u$ is the direction of
    motion in the image.
-3. **How fast, relative to depth** — the same real speed gives image speed
+3. **How fast, relative to depth** - the same real speed gives image speed
    $\propto 1/Z$. Nearer objects move faster in pixels (motion parallax).
-4. **Coming or going** — the $\dot Z$ term makes an approaching object expand
+4. **Coming or going** - the $\dot Z$ term makes an approaching object expand
    (flow points outward from a point, positive divergence) and a receding object
    contract toward a point.
-5. **How the camera moves** — camera motion puts flow on *every* pixel,
+5. **How the camera moves** - camera motion puts flow on *every* pixel,
    including the static background, so the background's flow measures the
    camera's own motion (below).
-6. **Where flow cannot be measured** — on a flat patch $\nabla I = 0$, the
+6. **Where flow cannot be measured** - on a flat patch $\nabla I = 0$, the
    constraint equation says nothing, and the flow comes out ~0 whatever moved.
 
 **Separating camera motion from object motion.** Both videos were filmed
@@ -89,7 +89,7 @@ against a panning camera.
 The evidence for each one, in the two videos, is in the report and on the
 web page.
 
-### A3. Tracking a point between two frames — setting up the problem
+### A3. Tracking a point between two frames - setting up the problem
 
 Given frame 1 $I_1$, frame 2 $I_2$ and a point $\mathbf x = (x, y)$ in frame 1, find
 the displacement $\mathbf d = (d_x, d_y)$ so that the window $W$ around $\mathbf x$ in
@@ -124,7 +124,7 @@ $$
 \boxed{\,\mathbf d = G^{-1}\mathbf b\,}
 $$
 
-These are the **Lucas–Kanade tracking equations** [1]. Equivalently, stacking the
+These are the **Lucas-Kanade tracking equations** [1]. Equivalently, stacking the
 $n$ pixels of the window, $A\mathbf d = -\mathbf i_t$ with $A = [I_x\ I_y]$ ($n \times 2$),
 and $\mathbf d = (A^TA)^{-1}A^T(-\mathbf i_t)$, the normal equations.
 
@@ -137,10 +137,10 @@ eigenvalues $\lambda_1 \ge \lambda_2$ say what the window looks like:
 | $\lambda_1 \gg \lambda_2 \approx 0$ | edge | aperture problem, only the normal component |
 | both large | corner / texture | well-posed |
 
-So points are chosen where $\lambda_{\min}$ is large. That is the Shi–Tomasi
+So points are chosen where $\lambda_{\min}$ is large. That is the Shi-Tomasi
 criterion [4], which `cv2.goodFeaturesToTrack` uses.
 
-**Iterate (Newton–Raphson).** The linearisation holds only for small $\mathbf d$.
+**Iterate (Newton-Raphson).** The linearisation holds only for small $\mathbf d$.
 Repeat, re-sampling frame 2 at the current estimate each time:
 
 $$
@@ -237,7 +237,7 @@ coarser pyramid levels are not), its gradients, and $I_2(\mathbf p + \mathbf d_k
 For two consecutive frames of each video (`validate_tracking.py`):
 
 1. **Predicted:** the equations above give $\mathbf x + \mathbf d$ for each
-   Shi–Tomasi corner.
+   Shi-Tomasi corner.
 2. **Actual:** where the point really went is measured *without* any flow
    equation. The 21×21 patch around $\mathbf x$ is slid over a ±24 px search area in
    frame 2, the peak of normalised cross-correlation is taken, and the peak is
@@ -250,7 +250,7 @@ $I_t$, $G$, each iteration) in the report.
 
 ---
 
-## Part B — Structure from motion with a planar object
+## Part B - Structure from motion with a planar object
 
 ### B1. Cameras and normalised coordinates
 
@@ -307,7 +307,7 @@ $$
 Every point on the plane moves between the two views by the same 3×3 matrix, and
 that matrix contains the motion $(R_i, \mathbf t_i)$ and the plane $(\mathbf n, d)$.
 
-### B3. Estimating $H$ — DLT
+### B3. Estimating $H$ - DLT
 
 Write $\mathbf m_i = (x', y')$ and $\mathbf m_1 = (x, y)$. From
 $\tilde{\mathbf m}_i \times H\tilde{\mathbf m}_1 = \mathbf 0$, each correspondence gives two equations
@@ -393,7 +393,7 @@ The linear steps minimise algebraic quantities, not image distances. So the
 result is refined by alternating two steps:
 
 - **resection:** re-estimate each camera $P_2, P_3, P_4$ from the current 3D points
-  by minimising reprojection error (`cv2.solvePnP`, Levenberg–Marquardt),
+  by minimising reprojection error (`cv2.solvePnP`, Levenberg-Marquardt),
 - **intersection:** re-triangulate every point from the new cameras,
 
 repeated 20 times. $P_1$ stays fixed. Scale is a free choice (the gauge), so after
@@ -428,28 +428,28 @@ Camera centres are $\mathbf C_i = -R_i^T\mathbf t_i$, put into the same frame.
 ## References
 
 1. B. D. Lucas and T. Kanade, "An iterative image registration technique with
-   an application to stereo vision," *Proc. IJCAI*, 1981, pp. 674–679.
+   an application to stereo vision," *Proc. IJCAI*, 1981, pp. 674-679.
 2. B. K. P. Horn and B. G. Schunck, "Determining optical flow," *Artificial
-   Intelligence*, vol. 17, pp. 185–203, 1981.
+   Intelligence*, vol. 17, pp. 185-203, 1981.
 3. G. Farnebäck, "Two-frame motion estimation based on polynomial expansion,"
-   *Proc. Scandinavian Conf. on Image Analysis*, LNCS 2749, 2003, pp. 363–370.
+   *Proc. Scandinavian Conf. on Image Analysis*, LNCS 2749, 2003, pp. 363-370.
 4. J. Shi and C. Tomasi, "Good features to track," *Proc. IEEE CVPR*, 1994,
-   pp. 593–600.
+   pp. 593-600.
 5. J.-Y. Bouguet, "Pyramidal implementation of the affine Lucas Kanade feature
-   tracker — description of the algorithm," Intel Corporation, 2001.
+   tracker - description of the algorithm," Intel Corporation, 2001.
 6. R. Hartley and A. Zisserman, *Multiple View Geometry in Computer Vision*,
    2nd ed., Cambridge University Press, 2004. Ch. 4 (DLT, normalisation),
    Ch. 12 (triangulation), Ch. 13 (plane-induced homography), Ch. 18 (bundle adjustment).
 7. O. Faugeras and F. Lustman, "Motion and structure from motion in a piecewise
    planar environment," *Int. J. Pattern Recognition and Artificial
-   Intelligence*, vol. 2, no. 3, pp. 485–508, 1988.
+   Intelligence*, vol. 2, no. 3, pp. 485-508, 1988.
 8. E. Malis and M. Vargas, "Deeper understanding of the homography decomposition
    for vision-based control," INRIA Research Report RR-6303, 2007.
 9. G. Bradski, "The OpenCV Library," *Dr. Dobb's Journal of Software Tools*, 2000.
 10. M. A. Fischler and R. C. Bolles, "Random sample consensus: a paradigm for
     model fitting with applications to image analysis and automated
-    cartography," *Communications of the ACM*, vol. 24, no. 6, pp. 381–395, 1981.
+    cartography," *Communications of the ACM*, vol. 24, no. 6, pp. 381-395, 1981.
 11. Videos 1 and 2 and the four notebook photos: my own, iPhone 13
     (IMG_1893, IMG_1895; IMG_2005, IMG_2009, IMG_2012, IMG_2016).
 12. D. G. Lowe, "Distinctive image features from scale-invariant keypoints,"
-    *Int. J. Computer Vision*, vol. 60, no. 2, pp. 91–110, 2004.
+    *Int. J. Computer Vision*, vol. 60, no. 2, pp. 91-110, 2004.

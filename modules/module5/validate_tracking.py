@@ -85,11 +85,11 @@ def fmt_mat(M, nd=1):
 
 def workings_md(name, w, actual, i, kind='moving'):
     L = []
-    L.append('### Worked example — %s, frames %d → %d, point (x, y) = (%d, %d)\n'
+    L.append('### Worked example - %s, frames %d -> %d, point (x, y) = (%d, %d)\n'
              % (name, i, i + 1, w['x'], w['y']))
     L.append('The point is on %s.\n' % ('a moving car' if kind == 'moving' else
              'the static background, and moves only because the camera turns'))
-    L.append('Window %d×%d centred on the point, full resolution, no pyramid. '
+    L.append('Window %dx%d centred on the point, full resolution, no pyramid. '
              'Rows are y (top to bottom), columns are x (left to right).\n'
              % (w['win'], w['win']))
     L.append('$I_1$ (frame %d grey levels):\n\n$$%s$$\n' % (i, fmt_mat(w['I1'], 0)))
@@ -106,7 +106,7 @@ def workings_md(name, w, actual, i, kind='moving'):
              '\\lambda_{min} = %.1f,\\ \\lambda_{max} = %.1f$$\n'
              % (fmt_mat(G, 1), w['eig'][0], w['eig'][1]))
     L.append('Both eigenvalues are well above zero, so $G$ is invertible and '
-             'the point is trackable (not an edge or a flat patch — the '
+             'the point is trackable (not an edge or a flat patch - the '
              'aperture problem does not apply here).\n')
     L.append('Iterations: $e = I_1(\\mathbf{x}) - I_2(\\mathbf{x} + \\mathbf{d})$ '
              '(with $I_2$ sampled by bilinear interpolation), '
@@ -254,7 +254,7 @@ def plot(name, clip, f1, f2, df, frame, wk):
         ax.plot([r.x, r.actual_x], [r.y, r.actual_y], '-', color='w', lw=0.8)
         ax.plot(r.actual_x, r.actual_y, 'o', mfc='none', mec='red', ms=7)
         ax.plot(r.pred_x, r.pred_y, '+', color=c, ms=7, mew=1.5)
-    ax.set_title('frame %d → %d. white line: start → actual.  red o: actual '
+    ax.set_title('frame %d -> %d. white line: start -> actual.  red o: actual '
                  '(correlation)   yellow +: predicted by my LK' % (frame, frame + 1),
                  fontsize=9)
     ax.axis('off')
@@ -265,7 +265,7 @@ def plot(name, clip, f1, f2, df, frame, wk):
     ax.scatter(rel.moved_px, rel.err_vs_opencv_px, s=18, marker='x',
                label='vs OpenCV pyramidal LK')
     ax.set_xlabel('how far the point moved (px)')
-    ax.set_ylabel('|predicted − reference| (px)')
+    ax.set_ylabel('|predicted - reference| (px)')
     ax.set_title('error of my LK prediction, %d reliable points' % len(rel),
                  fontsize=9)
     ax.grid(alpha=0.3)

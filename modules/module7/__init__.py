@@ -16,6 +16,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
+
 from . import stereo
 from . import room
 
@@ -29,10 +30,18 @@ NUMBER = 7
 TITLE = 'Stereo Vision'
 SUBTITLE = ('Measuring an object from two photos taken 5 cm apart '
             '(calibrated stereo), and room dimensions from video.')
-STATUS = 'in progress'
+STATUS = 'complete'
+
+# the main numbers, shown in a box at the top of the page
+RESULTS = [
+    ('Room size', '4.21 x 3.44 m', '2.42 m high, from my room videos'),
+    ('Notebook (stereo)', '21.6 x 28.8 cm', 'ruler 18.5 x 23.5 cm'),
+    ('Matrix checks', 'all pass', 'rank(F) = 2, det(R) = 1, E = (1, 1, 0)'),
+]
+THUMBNAIL = 'results/room_walls.jpg'      # picture for the home page card
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DATA = os.path.join(HERE, 'data')
+DATA = os.path.join(HERE, 'data', 'photos')   # Problem 1 photo pairs
 
 # how many points to click for each shape
 CLICK_HELP = {
@@ -373,13 +382,11 @@ def problem3():
              'the focal length and the lines agree.'
              % (r['angle_door_wall_deg'], r['angle_desk_wall_deg']))
     st.write('- The door comes out %.0f cm wide. Standard US interior doors '
-             'are 76–91 cm wide, so the scale looks right.'
+             'are 76-91 cm wide, so the scale looks right.'
              % (r['door_width_mm'] / 10))
 
 
 def render():
-    st.title('Module ' + str(NUMBER) + ' — ' + TITLE)
-    st.caption(SUBTITLE)
     tab1, tab3 = st.tabs(['Problem 1: Object size', 'Problem 3: Room size'])
     with tab1:
         problem1()

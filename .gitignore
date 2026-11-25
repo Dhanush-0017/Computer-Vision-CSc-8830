@@ -1,35 +1,22 @@
+# Python
 .venv/
+.venv_vllm/
 __pycache__/
 *.pyc
-.DS_Store
-files.zip
-files/EXPLAIN.md
-files/SUBMISSION.md
-files/SUBMISSION_M3.md
-files/VIDEO_M3.md
-files/screenshots/
-files/NOTES.md
-files/EXPLAIN_M3.md
-files/smoke_test.py
-files/MODULE3_GUIDE.md
-files/SCRIPT_M3.md
-files/SUBMISSION_M3_REPORT.md
-files/SUBMISSION_M4.md
-files/SCRIPT_M4.md
-files/Module4_Submission.pdf
-modules/module4/out/
 *.pt
-files/SUBMISSION_M5.md
-files/SCRIPT_M5.md
-files/Module5_6_Submission.pdf
-files/STUDY_NOTES.md
 
-.venv_vllm/
+# macOS
+.DS_Store
 
-# my original phone videos for Module 5 (large; the 30 s clips used are data/videos/*.mp4)
+# local notes and reports (not part of the code)
+files/
+files.zip
+module1.py
+video_llm_keynote/
+
+# generated output
+modules/module4/out/
+
+# original phone videos (the smaller copies used by the code are in data/)
 modules/module5/data/videos/*.MOV
-files/Module5_6_Submission.docx
-files/Module5_6_Video_Script.pdf
-
-# my original phone videos for Module 7 (large; the small copies used are data/room/*.mp4)
 modules/module7/*.MOV

@@ -20,7 +20,7 @@ import cv2
 import stereo
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DATA = os.path.join(HERE, 'data')
+DATA = os.path.join(HERE, 'data', 'photos')   # Problem 1 photo pairs
 
 
 def percent_error(estimate, truth):

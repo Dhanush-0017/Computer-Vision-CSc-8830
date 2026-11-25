@@ -82,7 +82,7 @@ for i, (rv, tv) in enumerate(poses):
 
 print(f'      detected in {len(objpoints)}/{len(poses)} synthetic images')
 assert len(objpoints) >= 8, 'FAIL: corner detection not working on this OpenCV build'
-print('      OK — findChessboardCorners + cornerSubPix work\n')
+print('      OK - findChessboardCorners + cornerSubPix work\n')
 
 # ---- TEST 2: calibration ----------------------------------------------------
 print('[2/4] Running cv2.calibrateCamera...')
@@ -97,14 +97,14 @@ print(f'      cy recovered {K[1,2]:8.2f}   (true {K_true[1,2]:.2f})')
 assert rms < 1.0, f'FAIL: reprojection error too high ({rms})'
 assert abs(K[0, 0] - K_true[0, 0]) / K_true[0, 0] < 0.05, 'FAIL: fx off by >5%'
 assert abs(K[1, 1] - K_true[1, 1]) / K_true[1, 1] < 0.05, 'FAIL: fy off by >5%'
-print('      OK — calibration recovers the true intrinsics\n')
+print('      OK - calibration recovers the true intrinsics\n')
 
 # ---- TEST 3: save / load ----------------------------------------------------
 print('[3/4] Testing save + load of camera_params.npz...')
 np.savez('/tmp/_selftest_params.npz', K=K, dist=dist, img_size=np.array([W, H]))
 d = np.load('/tmp/_selftest_params.npz')
 assert np.allclose(d['K'], K), 'FAIL: save/load mismatch'
-print('      OK — np.savez round-trip works\n')
+print('      OK - np.savez round-trip works\n')
 
 # ---- TEST 4: the measurement math ------------------------------------------
 print('[4/4] Testing the perspective-projection measurement...')
@@ -144,9 +144,9 @@ est2 = measure(q1, q2, Z, K_true, dist_true)
 print(f'      true length {true2:.2f} mm  ->  measured {est2:.2f} mm   '
       f'(error {abs(est2-true2):.3f} mm)')
 assert abs(est2 - true2) < 1.0, 'FAIL: diagonal measurement wrong'
-print('      OK — perspective projection measurement is correct\n')
+print('      OK - perspective projection measurement is correct\n')
 
 print('=' * 60)
-print('ALL CHECKS PASSED — your OpenCV build works with this code.')
+print('ALL CHECKS PASSED - your OpenCV build works with this code.')
 print('You can safely go take real photos now.')
 print('=' * 60)

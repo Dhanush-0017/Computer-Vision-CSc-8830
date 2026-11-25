@@ -3,7 +3,7 @@ _template.py -- copy this to start a new module.
 
 Underscore prefix keeps it out of the sidebar (app.py only picks up entries
 under modules/ whose name starts with "module"). Each module is its own
-self-contained folder: to make module 7, create modules/module7/, put this
+self-contained folder: to make module 8, create modules/module8/, put this
 file in there as __init__.py, set NUMBER/TITLE/SUBTITLE/STATUS, write
 render(), and put any of that module's own helper files/data alongside it in
 the same folder. Reload the browser -- app.py doesn't need any changes, it'll
@@ -23,11 +23,12 @@ NUMBER = 0
 TITLE = 'Template'
 SUBTITLE = 'One-line description shown on the home page.'
 STATUS = 'scheduled'        # 'complete' | 'in progress' | 'scheduled'
+THUMBNAIL = None            # optional: picture for the home card, e.g. 'results/plot.png'
 
 
 def render():
     """Draw this module's page. Called by app.py when selected."""
-    st.title('Module ' + str(NUMBER) + ' — ' + TITLE)
+    st.title('Module ' + str(NUMBER) + ' - ' + TITLE)
     st.caption(SUBTITLE)
 
     tab1, tab2 = st.tabs(['Implementation', 'Theory'])
